@@ -32,15 +32,6 @@ function cleanText(value: unknown, maxLength: number) {
   return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
 }
 
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
 function getClientIp(request: Request) {
   const forwarded = request.headers.get("x-forwarded-for");
   return forwarded?.split(",")[0]?.trim() || "unknown";
@@ -130,34 +121,25 @@ export async function POST(request: Request) {
       },
     });
 
-    const safeName = escapeHtml(name);
-    const safeEmail = escapeHtml(email);
-    const safeOrganization = escapeHtml(organization || "Not provided");
-    const safeTopic = escapeHtml(topic);
-    const safeMessage = escapeHtml(message).replaceAll("\n", "<br />");
-
+    // Send a single-part plain-text message. This avoids multipart MIME
+    // rendering issues in some mail clients while keeping replies directed
+    // to the person who submitted the form.
     await transporter.sendMail({
       from: `OurFaces Website <${user}>`,
       to,
       replyTo: { name, address: email },
-      subject: `OurFaces website inquiry — ${topic}`,
+      subject: `OurFaces Website Inquiry - ${topic}`,
       text: [
+        "New OurFaces website inquiry",
+        "",
         `Name: ${name}`,
         `Email: ${email}`,
         `Organization: ${organization || "Not provided"}`,
-        `Inquiry: ${topic}`,
+        `Inquiry Type: ${topic}`,
         "",
+        "Message:",
         message,
       ].join("\n"),
-      html: `
-        <h2>New OurFaces website inquiry</h2>
-        <p><strong>Name:</strong> ${safeName}</p>
-        <p><strong>Email:</strong> ${safeEmail}</p>
-        <p><strong>Organization:</strong> ${safeOrganization}</p>
-        <p><strong>Inquiry:</strong> ${safeTopic}</p>
-        <hr />
-        <p>${safeMessage}</p>
-      `,
     });
 
     return NextResponse.json({ ok: true });
