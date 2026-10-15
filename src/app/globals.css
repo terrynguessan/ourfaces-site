@@ -104,6 +104,19 @@ img {
   transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
 }
 
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.nav-link-home { inline-size: 58px; }
+.nav-link-technology { inline-size: 90px; }
+.nav-link-business { inline-size: 70px; }
+.nav-link-insights { inline-size: 98px; }
+.nav-link-about { inline-size: 66px; }
+
 .nav-links a:hover {
   color: var(--green);
 }
@@ -116,12 +129,13 @@ img {
 .nav-links a.active:not(.nav-cta)::after {
   content: "";
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 50%;
   bottom: -8px;
+  width: 34px;
   height: 2px;
   border-radius: 999px;
   background: var(--gold);
+  transform: translateX(-50%);
 }
 
 .nav-cta {
@@ -135,6 +149,34 @@ img {
   color: var(--gold);
   border-color: rgba(198, 138, 53, 0.5);
   background: rgba(198, 138, 53, 0.08);
+}
+
+.language-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: 1px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.language-switch .language-option {
+  color: #65726a;
+}
+
+.language-switch .language-option:hover,
+.language-switch .language-option.active {
+  color: var(--gold);
+}
+
+.language-switch .language-option.active::after {
+  display: none;
+}
+
+.language-separator {
+  color: rgba(17, 35, 28, 0.26);
+  font-weight: 500;
 }
 
 .menu-btn {
@@ -184,6 +226,10 @@ img {
   grid-template-columns: 1.08fr 0.92fr;
   gap: 62px;
   align-items: center;
+}
+
+.home-hero-copy {
+  min-width: 0;
 }
 
 .eyebrow {
@@ -294,10 +340,12 @@ h3 {
 }
 
 .earth-stage {
+  height: 530px;
   min-height: 530px;
   position: relative;
   display: grid;
   place-items: center;
+  align-self: start;
 }
 
 .earth-glow {
@@ -1023,6 +1071,7 @@ h3 {
   }
 
   .earth-stage {
+    height: 500px;
     min-height: 500px;
   }
 
@@ -1035,6 +1084,36 @@ h3 {
   .card-grid.three,
   .inquiry-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) and (min-width: 761px) {
+  .site-nav {
+    gap: 16px;
+  }
+
+  .brand-logo {
+    width: 170px;
+  }
+
+  .nav-links {
+    gap: 14px;
+    font-size: 13px;
+  }
+
+  .nav-link-home { inline-size: 50px; }
+  .nav-link-technology { inline-size: 76px; }
+  .nav-link-business { inline-size: 58px; }
+  .nav-link-insights { inline-size: 82px; }
+  .nav-link-about { inline-size: 54px; }
+
+  .nav-cta {
+    padding: 9px 13px;
+  }
+
+  .language-switch {
+    gap: 5px;
+    font-size: 11px;
   }
 }
 
@@ -1080,14 +1159,26 @@ h3 {
     display: flex;
   }
 
+  .nav-link {
+    inline-size: 100%;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
   .nav-links a.active:not(.nav-cta)::after {
+    left: 0;
     bottom: -3px;
     width: 34px;
-    right: auto;
+    transform: none;
   }
 
   .nav-cta {
     text-align: center;
+  }
+
+  .language-switch {
+    justify-content: center;
+    padding-top: 4px;
   }
 
   .site-main {
@@ -1106,6 +1197,7 @@ h3 {
   }
 
   .earth-stage {
+    height: 400px;
     min-height: 400px;
   }
 
