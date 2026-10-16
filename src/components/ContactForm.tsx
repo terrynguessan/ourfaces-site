@@ -93,7 +93,7 @@ export default function ContactForm({ locale = "en" }: { locale?: Locale }) {
   }
 
   return (
-    <form className="contact-form" onSubmit={handleSubmit}>
+    <form className="contact-form" onSubmit={handleSubmit} aria-busy={submitState === "sending"}>
       <div className="form-grid">
         <label>
           <span>{t.name}</span>
@@ -136,7 +136,7 @@ export default function ContactForm({ locale = "en" }: { locale?: Locale }) {
       </button>
 
       {statusMessage && (
-        <p className={`form-status ${submitState === "success" ? "success" : "error"}`} role="status" aria-live="polite">
+        <p className={`form-status ${submitState === "success" ? "success" : "error"}`} role={submitState === "error" ? "alert" : "status"} aria-live={submitState === "error" ? "assertive" : "polite"}>
           {statusMessage}
         </p>
       )}

@@ -88,7 +88,7 @@ export default function BusinessPageContent({ locale }: { locale: Locale }) {
   const t = copy[locale];
 
   return (
-    <>
+    <div lang={locale}>
       <section className="shell page-hero page-hero-with-visual">
         <div className="page-hero-inner">
           <div className="kicker">{t.kicker}</div>
@@ -149,6 +149,6 @@ export default function BusinessPageContent({ locale }: { locale: Locale }) {
       </section>
 
       <ContactCta title={t.ctaTitle} locale={locale}>{t.ctaCopy}</ContactCta>
-    </>
+    </div>
   );
 }

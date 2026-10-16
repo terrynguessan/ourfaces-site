@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   equivalentLanguagePath,
   localeFromPathname,
@@ -26,10 +26,33 @@ export default function Header() {
   const router = useRouter();
   const locale = localeFromPathname(pathname);
   const [open, setOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const navLinksRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+
+      if (
+        menuButtonRef.current?.contains(target) ||
+        navLinksRef.current?.contains(target)
+      ) {
+        return;
+      }
+
+      setOpen(false);
+    };
+
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [open]);
 
   useEffect(() => {
     let startX: number | null = null;
@@ -111,9 +134,14 @@ export default function Header() {
 
   const navLabel = locale === "fr" ? "Navigation principale" : "Primary navigation";
   const homeLabel = locale === "fr" ? "Accueil OurFaces" : "OurFaces home";
+  const skipLabel = locale === "fr" ? "Aller au contenu principal" : "Skip to main content";
+  const menuLabel = open
+    ? locale === "fr" ? "Fermer le menu" : "Close menu"
+    : locale === "fr" ? "Ouvrir le menu" : "Open menu";
 
   return (
-    <header className="site-header">
+    <header className="site-header" lang={locale}>
+      <a className="skip-link" href="#main-content">{skipLabel}</a>
       <nav className="shell site-nav" aria-label={navLabel}>
         <Link
           className="brand"
@@ -129,16 +157,22 @@ export default function Header() {
         </Link>
 
         <button
+          ref={menuButtonRef}
           className="menu-btn"
           type="button"
           aria-expanded={open}
           aria-controls="primary-nav-links"
+          aria-label={menuLabel}
           onClick={() => setOpen((value) => !value)}
         >
           Menu
         </button>
 
-        <div className={`nav-links${open ? " open" : ""}`} id="primary-nav-links">
+        <div
+          ref={navLinksRef}
+          className={`nav-links${open ? " open" : ""}`}
+          id="primary-nav-links"
+        >
           {links.map((link) => {
             const href = localizedPath(locale, link.href);
             const active = pathname === href;
@@ -159,7 +193,10 @@ export default function Header() {
             <Link
               href={equivalentLanguagePath(pathname, "en")}
               className={locale === "en" ? "language-option active" : "language-option"}
-              aria-current={locale === "en" ? "true" : undefined}
+              aria-current={locale === "en" ? "page" : undefined}
+              aria-label="English"
+              lang="en"
+              hrefLang="en"
               onClick={() => setOpen(false)}
             >
               EN
@@ -168,7 +205,10 @@ export default function Header() {
             <Link
               href={equivalentLanguagePath(pathname, "fr")}
               className={locale === "fr" ? "language-option active" : "language-option"}
-              aria-current={locale === "fr" ? "true" : undefined}
+              aria-current={locale === "fr" ? "page" : undefined}
+              aria-label="Français"
+              lang="fr"
+              hrefLang="fr"
               onClick={() => setOpen(false)}
             >
               FR

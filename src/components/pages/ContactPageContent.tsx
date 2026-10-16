@@ -52,7 +52,7 @@ export default function ContactPageContent({ locale }: { locale: Locale }) {
   const t = copy[locale];
 
   return (
-    <>
+    <div lang={locale}>
       <section className="shell page-hero page-hero-with-visual">
         <div className="page-hero-inner">
           <div className="kicker">{t.kicker}</div>
@@ -97,6 +97,6 @@ export default function ContactPageContent({ locale }: { locale: Locale }) {
       </section>
 
       <div className="shell privacy-note">{t.privacy}</div>
-    </>
+    </div>
   );
 }

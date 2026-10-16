@@ -100,7 +100,7 @@ export default function HomePageContent({ locale }: { locale: Locale }) {
   const t = copy[locale];
 
   return (
-    <>
+    <div lang={locale}>
       <section className="shell home-hero">
         <div className="home-hero-copy">
           <span className="eyebrow">{t.eyebrow}</span>
@@ -192,6 +192,6 @@ export default function HomePageContent({ locale }: { locale: Locale }) {
       </section>
 
       <ContactCta title={t.ctaTitle} locale={locale}>{t.ctaCopy}</ContactCta>
-    </>
+    </div>
   );
 }
