@@ -1,0 +1,113 @@
+{
+  "notes": "Calibration cases for the copyright-overlap check. Source texts are original fixture prose. 'expect' is the intended outcome: pass = acceptable original summary, fail = copying that must be rejected.",
+  "sources": {
+    "devtools": "Today we are releasing version 5.0 of the command-line type checker. The headline feature is incremental mode, which stores the results of each run in a local cache and reuses them the next time you check the project. When incremental mode is enabled, the checker records a fingerprint for every source file and for the declarations it exports. On the next run, only files whose fingerprint changed, together with the files that depend on them, are checked again. Everything else is read from the cache. In our benchmarks on three large monorepos, repeat checks after a small edit finished up to four times faster than in version 4.9. A full check from an empty cache takes about the same time as before, because the cache has to be built first. Incremental mode is off by default in this release. You can turn it on with the --incremental flag or by setting \"incremental\": true in the configuration file. The cache is written to a .typecache directory, which should be excluded from version control. Version 5.0 requires Node.js 20 or later. Projects that use custom plugins must update to the version 5 plugin API; the previous API is still available behind a compatibility flag and will be removed in a future major release.",
+    "security": "The Open Worldwide Application Security Project Top 10 for Large Language Model Applications has been updated for 2026. The new edition adds a category for excessive agency, which covers systems that let a model take actions such as sending email or changing records without adequate checks. Prompt injection remains the first entry on the list. The authors recommend that teams treat all model output as untrusted input, restrict the tools a model can call to the minimum needed, and require human approval for actions that cannot be undone. The update was prepared by a group of more than 500 contributors from industry and academia, and it is published under a Creative Commons licence. The project also released a companion checklist for security reviews of applications built on large language models.",
+    "study": "Researchers analysed 1,200 open-source repositories to understand why some automated tests pass and fail without any code change. Their study traced 61% of these intermittent failures to test fixtures that were shared between tests and modified by one of them. Fixtures are the data and objects that a test prepares before it runs. When two tests reuse the same fixture and one of them changes it, the result of the second test can depend on the order in which the tests run. The authors also looked at projects that changed their test setup to give each test its own copy of the data. In those projects, the number of intermittent failures dropped noticeably over the following months.",
+    "fr": "Le projet pilote réunit des administrations et des entreprises de plusieurs pays de l'Union européenne. Pendant six mois, les participants testeront une spécification technique commune qui décrit la présentation des attestations, la vérification des signatures et la protection des données personnelles. Les services participants pourront demander uniquement les attributs nécessaires, par exemple la preuve qu'une personne est majeure, sans recevoir sa date de naissance complète."
+  },
+  "cases": [
+    {
+      "source": "devtools",
+      "expect": "pass",
+      "label": "Phase 1 sample summary (paraphrase)",
+      "text": "Version 5.0 caches results between runs so that only changed files and their dependants are re-checked. The release notes report up to four times faster repeat checks on large monorepos."
+    },
+    {
+      "source": "devtools",
+      "expect": "pass",
+      "label": "why-it-matters paraphrase",
+      "text": "Faster local feedback shortens the edit-and-verify loop without changing project configuration."
+    },
+    {
+      "source": "devtools",
+      "expect": "pass",
+      "label": "paraphrase sharing short technical phrases",
+      "text": "Incremental mode, off by default, keeps a local cache and re-checks only changed files and the files that depend on them. It needs Node.js 20 or later."
+    },
+    {
+      "source": "devtools",
+      "expect": "fail",
+      "label": "verbatim sentence",
+      "text": "When incremental mode is enabled, the checker records a fingerprint for every source file and for the declarations it exports."
+    },
+    {
+      "source": "devtools",
+      "expect": "fail",
+      "label": "lightly edited copy (patchwriting)",
+      "text": "Incremental mode is off by default in this release, and you can turn it on with the incremental flag or by setting incremental to true in the configuration file."
+    },
+    {
+      "source": "devtools",
+      "expect": "fail",
+      "label": "stitched fragments of 8-11 words",
+      "text": "A full check from an empty cache takes about the same time, and projects that use custom plugins must update to the version 5 plugin API."
+    },
+    {
+      "source": "security",
+      "expect": "pass",
+      "label": "summary repeating a long official name",
+      "text": "The Open Worldwide Application Security Project Top 10 for Large Language Model Applications now includes excessive agency, covering models that act without adequate checks. Prompt injection stays at the top of the list."
+    },
+    {
+      "source": "security",
+      "expect": "pass",
+      "label": "paraphrase of recommendations",
+      "text": "The guidance asks teams to treat model output as untrusted, give models only the tools they need and keep a human approval step for irreversible actions."
+    },
+    {
+      "source": "security",
+      "expect": "fail",
+      "label": "verbatim recommendation sentence",
+      "text": "The authors recommend that teams treat all model output as untrusted input, restrict the tools a model can call to the minimum needed."
+    },
+    {
+      "source": "study",
+      "expect": "pass",
+      "label": "Phase 1 sample summary (paraphrase with numbers)",
+      "text": "Researchers analysed 1,200 open-source repositories and traced 61% of intermittent test failures to fixtures shared and modified across tests. Isolating fixture state reduced flakiness in the projects that adopted the change."
+    },
+    {
+      "source": "study",
+      "expect": "fail",
+      "label": "copied definition sentence",
+      "text": "When two tests reuse the same fixture and one of them changes it, the result of the second test can depend on the order in which the tests run."
+    },
+    {
+      "source": "fr",
+      "expect": "pass",
+      "label": "French paraphrase",
+      "text": "Un pilote de six mois teste une spécification commune pour présenter des attestations et vérifier des signatures, avec une divulgation limitée aux attributs utiles."
+    },
+    {
+      "source": "fr",
+      "expect": "fail",
+      "label": "French verbatim copy",
+      "text": "Les services participants pourront demander uniquement les attributs nécessaires, par exemple la preuve qu'une personne est majeure."
+    },
+    {
+      "source": "devtools",
+      "expect": "pass",
+      "label": "one factual 9-word comparison phrase",
+      "text": "Repeat checks after a small edit are up to four times faster than in version 4.9, according to the release notes, while full checks take about as long as before."
+    },
+    {
+      "source": "security",
+      "expect": "pass",
+      "label": "one 8-word factual phrase about contributors",
+      "text": "The update was prepared by more than 500 contributors from industry and academia and is free to reuse under a Creative Commons licence."
+    },
+    {
+      "source": "study",
+      "expect": "fail",
+      "label": "patchwriting: two 10-11 word runs",
+      "text": "Their study traced 61% of these intermittent failures to test fixtures; when two tests reuse the same fixture, the result can depend on the order in which the tests run."
+    },
+    {
+      "source": "devtools",
+      "expect": "fail",
+      "label": "patchwriting: three 8-9 word runs",
+      "text": "The checker records a fingerprint for every source file, then on the next run only files whose fingerprint changed are checked, and the cache is written to a .typecache directory."
+    }
+  ]
+}

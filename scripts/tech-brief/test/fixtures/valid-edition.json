@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "edition": "2026-10-24",
+  "publishedOn": "2026-10-25",
+  "stories": [
+    {
+      "id": "s1",
+      "category": "applied-ai",
+      "url": "https://engineering.fixture.ourfaces.net/blog/structured-outputs-ga",
+      "publisher": "Example Engineering",
+      "sourcePublishedOn": "2026-10-21",
+      "sourceHeadline": "Structured outputs are now generally available for all API tiers",
+      "sourceHeadlineLang": "en",
+      "en": {
+        "headline": "Structured outputs reach general availability",
+        "summary": "The provider made schema-constrained responses available on every API tier. Requests can now supply a JSON Schema and receive output that always parses against it, removing the need for retry-and-repair loops in client code.",
+        "whyItMatters": "Teams that extract data or call tools from model output can drop custom validation layers and reduce failed requests."
+      },
+      "fr": {
+        "headline": "Les sorties structurées deviennent disponibles pour tous",
+        "summary": "Le fournisseur a rendu les réponses contraintes par schéma disponibles pour tous les niveaux d’API. Les requêtes peuvent désormais fournir un schéma JSON et recevoir une sortie toujours conforme, sans boucles de nouvelle tentative côté client.",
+        "whyItMatters": "Les équipes qui extraient des données ou appellent des outils à partir des réponses du modèle peuvent supprimer des couches de validation personnalisées."
+      }
+    },
+    {
+      "id": "s2",
+      "category": "development-practices",
+      "url": "https://journal.fixture.ourfaces.net/articles/2026/10/test-flakiness-study",
+      "publisher": "Example Software Journal",
+      "sourcePublishedOn": "2026-10-20",
+      "sourceHeadline": "Study of 1,200 repositories links flaky tests to shared mutable fixtures",
+      "sourceHeadlineLang": "en",
+      "en": {
+        "headline": "Shared mutable fixtures drive most flaky tests, study finds",
+        "summary": "Researchers analysed 1,200 open-source repositories and traced 61% of intermittent test failures to fixtures shared and modified across tests. Isolating fixture state reduced flakiness in the projects that adopted the change.",
+        "whyItMatters": "Auditing shared test setup is a low-cost first step for teams losing time to unreliable continuous integration."
+      },
+      "fr": {
+        "headline": "Les données de test partagées et modifiables causent la plupart des tests instables",
+        "summary": "Des chercheurs ont analysé 1 200 dépôts open source et attribué 61 % des échecs intermittents à des données de test partagées et modifiées entre les tests. L’isolation de cet état a réduit l’instabilité dans les projets concernés.",
+        "whyItMatters": "Vérifier la configuration partagée des tests est une première étape peu coûteuse pour les équipes ralenties par une intégration continue peu fiable."
+      }
+    },
+    {
+      "id": "s3",
+      "category": "tools-techniques",
+      "url": "https://devtools.fixture.ourfaces.net/releases/v5-0",
+      "publisher": "Example DevTools",
+      "sourcePublishedOn": "2026-10-22",
+      "sourceHeadline": "Version 5.0 brings incremental type checking to the command line",
+      "sourceHeadlineLang": "en",
+      "en": {
+        "headline": "Command-line type checker adds incremental mode",
+        "summary": "Version 5.0 caches results between runs so that only changed files and their dependants are re-checked. The release notes report up to four times faster repeat checks on large monorepos.",
+        "whyItMatters": "Faster local feedback shortens the edit-and-verify loop without changing project configuration."
+      },
+      "fr": {
+        "headline": "Le vérificateur de types en ligne de commande adopte un mode incrémental",
+        "summary": "La version 5.0 met en cache les résultats entre les exécutions afin de ne revérifier que les fichiers modifiés et leurs dépendants. Les notes de version indiquent des vérifications répétées jusqu’à quatre fois plus rapides.",
+        "whyItMatters": "Un retour plus rapide en local raccourcit le cycle de modification et de vérification, sans changer la configuration du projet."
+      }
+    },
+    {
+      "id": "s4",
+      "category": "emerging-technology",
+      "url": "https://numerique.fixture.ourfaces.net/actualites/2026/10/interoperabilite-identite-numerique",
+      "publisher": "Exemple Numérique",
+      "sourcePublishedOn": "2026-10-19",
+      "sourceHeadline": "Identité numérique : un nouveau cadre d’interopérabilité européen entre en phase pilote",
+      "sourceHeadlineLang": "fr",
+      "en": {
+        "headline": "European digital identity interoperability framework enters pilot",
+        "summary": "A cross-border pilot will test whether digital identity wallets issued in one member state can be accepted by public and private services in another, using a common technical specification.",
+        "whyItMatters": "Organizations that verify customer identity in Europe may need to plan for wallet-based onboarding and the related compliance requirements."
+      },
+      "fr": {
+        "headline": "Le cadre européen d’interopérabilité de l’identité numérique entre en phase pilote",
+        "summary": "Un pilote transfrontalier vérifiera si les portefeuilles d’identité numérique émis dans un État membre peuvent être acceptés par des services publics et privés d’un autre État, grâce à une spécification technique commune.",
+        "whyItMatters": "Les organisations qui vérifient l’identité de leurs clients en Europe devront peut-être prévoir une intégration par portefeuille et les exigences de conformité associées."
+      }
+    }
+  ]
+}

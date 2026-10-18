@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="fr-FR">
+<head>
+<meta charset="utf-8">
+<title>Identité numérique : un nouveau cadre d&#8217;interopérabilité européen entre en phase pilote &ndash; Exemple Numérique</title>
+<meta property="og:title" content="Identité numérique : un nouveau cadre d’interopérabilité européen entre en phase pilote">
+<meta property="og:site_name" content="Exemple Numérique">
+<meta property="og:locale" content="fr_FR">
+<meta name="date" content="2026-10-19">
+<link rel="canonical" href="https://numerique.fixture.ourfaces.net/actualites/2026/10/interoperabilite-identite-numerique/">
+</head>
+<body>
+<div id="page">
+<h1>Identité numérique&nbsp;: un nouveau cadre d’interopérabilité européen entre en phase pilote</h1>
+<div class="chapo"><p>Un pilote transfrontalier doit vérifier que les portefeuilles d’identité numérique émis dans un État membre sont acceptés par les services d’un autre État.</p></div>
+<div class="contenu">
+<p>Le projet pilote réunit des administrations et des entreprises de plusieurs pays de l&#x27;Union européenne. Pendant six mois, les participants testeront une spécification technique commune qui décrit la présentation des attestations, la vérification des signatures et la protection des données personnelles.</p>
+<p>Les services participants pourront demander uniquement les attributs nécessaires, par exemple la preuve qu’une personne est majeure, sans recevoir sa date de naissance complète. Cette divulgation sélective est l’un des principaux points évalués pendant la phase pilote.</p>
+<p>Les organisateurs publieront un bilan à la fin de l’expérimentation. Les résultats serviront à ajuster la spécification avant un déploiement plus large, qui n’est pas attendu avant 2027.</p>
+<p>Pour les organisations qui vérifient l’identité de leurs clients, le pilote donne un premier aperçu des exigences techniques et de conformité associées à une intégration par portefeuille.</p>
+</div>
+</div>
+</body>
+</html>

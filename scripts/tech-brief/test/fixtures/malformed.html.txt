@@ -1,0 +1,13 @@
+<html><head><title>Study of 1,200 repositories links flaky tests to shared mutable fixtures - Example Software Journal</title
+<meta property=og:title content=Study of 1,200 repositories>
+<meta property="article:published_time" content='2026-10-20T08:00:00Z'>
+<body>
+<div class=content>
+<p>Researchers analysed 1,200 open-source repositories to understand why some automated tests pass and fail without any code change. Their study traced 61% of these intermittent failures to test fixtures that were shared between tests and modified by one of them.
+<p>Fixtures are the data and objects that a test prepares before it runs. When two tests reuse the same fixture and one of them changes it, the result of the second test can depend on the order in which the tests run.
+<p>The authors also looked at projects that changed their test setup to give each test its own copy of the data. In those projects, the number of intermittent failures dropped noticeably over the following months.</div></div></div>
+<p>Other causes in the study included timing assumptions, network calls to external services and tests that depended on the current date.<b><i>Unclosed formatting</b> continues here.
+<p>The full dataset and the scripts used for the analysis are published alongside the paper so that other teams can reproduce the results.
+<ul><li>Shared fixtures<li>Timing assumptions<li>Network calls</ul>
+<script>var s = "</p><p>not text</p>"; if (a < b && c > d) {}</script>
+<!-- an unterminated comment at the end
