@@ -1,0 +1,9 @@
+# Prettier already skips .gitignore entries (node_modules, .next, out, .env*).
+package-lock.json
+next-env.d.ts
+public
+
+# Vendored or tool-generated files
+.claude
+.playwright-mcp
+AGENTS.md

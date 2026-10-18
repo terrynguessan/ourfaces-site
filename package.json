@@ -5,19 +5,21 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "next": "latest",
+    "nodemailer": "latest",
     "react": "latest",
-    "react-dom": "latest",
-    "nodemailer": "latest"
+    "react-dom": "latest"
   },
   "devDependencies": {
     "@types/node": "latest",
+    "@types/nodemailer": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
-    "typescript": "latest",
-    "@types/nodemailer": "latest"
+    "prettier": "3.9.10",
+    "typescript": "latest"
   }
 }
