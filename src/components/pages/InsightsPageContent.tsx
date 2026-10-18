@@ -104,8 +104,8 @@ const copy = {
     briefEditionTitle: "Le brief de la semaine",
     briefStoriesLabel: "Articles du Tech Brief de la semaine",
     // Non-breaking spaces keep the colon from wrapping onto its own line.
-    briefWhyItMatters: "Pourquoi c’est important :",
-    briefSource: "Source :",
+    briefWhyItMatters: "Pourquoi c’est important\u00a0:",
+    briefSource: "Source\u00a0:",
     learningKicker: "De l’apprentissage à la pratique",
     learningTitle: "L’apprentissage doit mener à de meilleures solutions.",
     learningCopy: "Suivre la technologie est surtout utile lorsqu’elle améliore la compréhension des problèmes et la conception des solutions. OurFaces aborde l’apprentissage en gardant à l’esprit son application pratique.",

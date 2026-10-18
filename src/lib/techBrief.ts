@@ -43,7 +43,7 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const LANG_TAG = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/;
 const STORY_ID = /^[a-z0-9-]{1,40}$/;
 // C0/C1 control characters plus bidirectional embedding, override and isolate marks.
-const UNSAFE_CHARS = /[\u0000-\u001f\u007f-\u009f‪-‮⁦-⁩]/;
+const UNSAFE_CHARS = /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/;
 
 type Fields = Record<string, unknown>;
 
