@@ -139,6 +139,36 @@ export default function Header() {
     ? locale === "fr" ? "Fermer le menu" : "Close menu"
     : locale === "fr" ? "Ouvrir le menu" : "Open menu";
 
+  // Rendered in the desktop nav and, when the nav collapses, in the header bar
+  // itself so the language choice stays visible without opening the menu.
+  const renderLanguageSwitch = (className: string) => (
+    <div className={className} role="group" aria-label={locale === "fr" ? "Langue" : "Language"}>
+      <Link
+        href={equivalentLanguagePath(pathname, "en")}
+        className={locale === "en" ? "language-option active" : "language-option"}
+        aria-current={locale === "en" ? "page" : undefined}
+        aria-label="English"
+        lang="en"
+        hrefLang="en"
+        onClick={() => setOpen(false)}
+      >
+        EN
+      </Link>
+      <span className="language-separator" aria-hidden="true">|</span>
+      <Link
+        href={equivalentLanguagePath(pathname, "fr")}
+        className={locale === "fr" ? "language-option active" : "language-option"}
+        aria-current={locale === "fr" ? "page" : undefined}
+        aria-label="Français"
+        lang="fr"
+        hrefLang="fr"
+        onClick={() => setOpen(false)}
+      >
+        FR
+      </Link>
+    </div>
+  );
+
   return (
     <header className="site-header" lang={locale}>
       <a className="skip-link" href="#main-content">{skipLabel}</a>
@@ -151,10 +181,14 @@ export default function Header() {
         >
           <img
             className="brand-logo"
-            src="/assets/ourfaces-logo.png"
+            src="/assets/ourfaces-logo-564.png"
+            width={564}
+            height={184}
             alt="OurFaces — Import Export, LLC"
           />
         </Link>
+
+        {renderLanguageSwitch("language-switch language-switch-mobile")}
 
         <button
           ref={menuButtonRef}
@@ -189,31 +223,7 @@ export default function Header() {
             );
           })}
 
-          <div className="language-switch" aria-label={locale === "fr" ? "Langue" : "Language"}>
-            <Link
-              href={equivalentLanguagePath(pathname, "en")}
-              className={locale === "en" ? "language-option active" : "language-option"}
-              aria-current={locale === "en" ? "page" : undefined}
-              aria-label="English"
-              lang="en"
-              hrefLang="en"
-              onClick={() => setOpen(false)}
-            >
-              EN
-            </Link>
-            <span className="language-separator" aria-hidden="true">|</span>
-            <Link
-              href={equivalentLanguagePath(pathname, "fr")}
-              className={locale === "fr" ? "language-option active" : "language-option"}
-              aria-current={locale === "fr" ? "page" : undefined}
-              aria-label="Français"
-              lang="fr"
-              hrefLang="fr"
-              onClick={() => setOpen(false)}
-            >
-              FR
-            </Link>
-          </div>
+          {renderLanguageSwitch("language-switch")}
         </div>
       </nav>
     </header>

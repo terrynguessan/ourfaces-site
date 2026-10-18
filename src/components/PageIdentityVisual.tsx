@@ -4,27 +4,27 @@ type VisualVariant = "technology" | "business" | "insights" | "about" | "contact
 
 const visualSources: Record<VisualVariant, { src: string; en: string; fr: string }> = {
   technology: {
-    src: "/assets/page-visuals/technology.png",
+    src: "/assets/page-visuals/technology.webp",
     en: "Laptop displaying software code in a bright workspace",
     fr: "Ordinateur portable affichant du code dans un espace de travail lumineux",
   },
   business: {
-    src: "/assets/page-visuals/business.png",
+    src: "/assets/page-visuals/business.webp",
     en: "Business professionals shaking hands in a bright meeting room",
     fr: "Professionnels se serrant la main dans une salle de réunion lumineuse",
   },
   insights: {
-    src: "/assets/page-visuals/insights.png",
+    src: "/assets/page-visuals/insights.webp",
     en: "Professional reviewing information with data visualizations in a modern workspace",
     fr: "Professionnelle analysant des informations et des visualisations de données dans un espace moderne",
   },
   about: {
-    src: "/assets/page-visuals/about.png",
+    src: "/assets/page-visuals/about.webp",
     en: "Team collaborating around a table in a bright creative workspace",
     fr: "Équipe collaborant autour d’une table dans un espace de travail créatif et lumineux",
   },
   contact: {
-    src: "/assets/page-visuals/contact.png",
+    src: "/assets/page-visuals/contact.webp",
     en: "Professional speaking on the phone while working at a laptop",
     fr: "Professionnelle au téléphone devant son ordinateur portable",
   },
