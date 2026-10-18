@@ -24,8 +24,13 @@ const OPENSSL_CANDIDATES = [
   "C:\\Program Files\\Git\\mingw64\\bin\\openssl.exe",
 ];
 
-/** Generates a self-signed cert for *.fixture.ourfaces.net. Returns null if OpenSSL is unavailable. */
-export function makeCertificate() {
+/**
+ * Generates a self-signed cert for *.fixture.ourfaces.net plus any extra
+ * fixture domains (each also covered as *.domain). Returns null if OpenSSL is
+ * unavailable.
+ */
+export function makeCertificate(extraDomains = []) {
+  const extra = extraDomains.map((d) => `,DNS:${d},DNS:*.${d}`).join("");
   const dir = mkdtempSync(join(tmpdir(), "tech-brief-cert-"));
   const key = join(dir, "key.pem");
   const cert = join(dir, "cert.pem");
@@ -48,7 +53,7 @@ export function makeCertificate() {
           "-subj",
           `/CN=${TEST_DOMAIN}`,
           "-addext",
-          `subjectAltName=DNS:${TEST_DOMAIN},DNS:*.${TEST_DOMAIN},DNS:other-site.ourfaces.net`,
+          `subjectAltName=DNS:${TEST_DOMAIN},DNS:*.${TEST_DOMAIN},DNS:other-site.ourfaces.net${extra}`,
         ],
         { stdio: "ignore" },
       );
