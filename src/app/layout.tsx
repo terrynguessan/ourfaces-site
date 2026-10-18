@@ -4,7 +4,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://ourfaces.net"),
+  metadataBase: new URL("https://www.ourfaces.net"),
   title: {
     default: "OurFaces Import & Export, LLC",
     template: "%s | OurFaces",
@@ -15,13 +15,13 @@ export const metadata: Metadata = {
     title: "OurFaces Import & Export, LLC",
     description:
       "Practical technology solutions, business opportunities, and useful insights.",
-    url: "https://ourfaces.net/",
+    url: "https://www.ourfaces.net/",
     siteName: "OurFaces",
     images: [{ url: "/assets/ourfaces-og.png" }],
     type: "website",
   },
   icons: {
-    icon: "/assets/favicon.png",
+    icon: "/assets/favicon-192.png",
   },
 };
 

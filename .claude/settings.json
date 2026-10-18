@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(*skills/impeccable/scripts/impeccable *)",
+      "Bash(*impeccable.cmd *)",
+      "PowerShell(& *impeccable*)",
+      "PowerShell(.claude*impeccable*)",
+      "PowerShell(.\\.claude*impeccable*)",
+      "PowerShell(./.claude*impeccable*)",
+      "PowerShell(C:*impeccable*)",
+      "PowerShell(cmd *impeccable*)",
+      "PowerShell(sh *impeccable*)",
+      "PowerShell(bash *impeccable*)",
+      "PowerShell(Start-Process *impeccable*)"
+    ]
+  }
+}

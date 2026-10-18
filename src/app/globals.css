@@ -213,19 +213,22 @@ img {
 }
 
 .site-main {
+  /* The side bands reach their faint 0.05 tint at the content edge, so text
+     never sits on the stronger green when the outer gutter is narrow. */
+  --band-edge: min(11%, max(20px, calc((100% - 1180px) / 2)));
   min-height: calc(100vh - 150px);
   background:
     linear-gradient(
       90deg,
       rgba(15, 90, 60, 0.64) 0%,
-      rgba(15, 90, 60, 0.4) 3.5%,
-      rgba(15, 90, 60, 0.18) 7.5%,
-      rgba(15, 90, 60, 0.05) 11%,
+      rgba(15, 90, 60, 0.4) calc(var(--band-edge) * 0.32),
+      rgba(15, 90, 60, 0.18) calc(var(--band-edge) * 0.68),
+      rgba(15, 90, 60, 0.05) var(--band-edge),
       rgba(15, 90, 60, 0) 14%,
       rgba(15, 90, 60, 0) 86%,
-      rgba(15, 90, 60, 0.05) 89%,
-      rgba(15, 90, 60, 0.18) 92.5%,
-      rgba(15, 90, 60, 0.4) 96.5%,
+      rgba(15, 90, 60, 0.05) calc(100% - var(--band-edge)),
+      rgba(15, 90, 60, 0.18) calc(100% - var(--band-edge) * 0.68),
+      rgba(15, 90, 60, 0.4) calc(100% - var(--band-edge) * 0.32),
       rgba(15, 90, 60, 0.64) 100%
     ),
     radial-gradient(circle at 88% 5%, rgba(198, 138, 53, 0.1), transparent 24rem),
@@ -402,13 +405,26 @@ h3 {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background-image: url("/assets/bluemarble.jpg");
+  background-image: url("/assets/bluemarble-2048.jpg");
   background-repeat: repeat-x;
   background-size: auto 100%;
   background-position: 0 center;
   animation: earth-drift 90s linear infinite;
-  filter: saturate(0.78) brightness(0.82) sepia(0.1) hue-rotate(68deg);
+  filter: saturate(0.78) brightness(0.82) sepia(0.1);
   transform: scale(1.03);
+}
+
+/* Brand-green colour wash over the whole globe. Unlike hue-rotate, it tints
+   land and ocean together, so the oceans stay green-teal instead of purple. */
+.earth-sphere::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--green);
+  mix-blend-mode: color;
+  opacity: 0.35;
+  pointer-events: none;
 }
 
 .earth-shade {
@@ -520,6 +536,13 @@ h3 {
 .contact-cta h2,
 .panel-title {
   letter-spacing: -0.045em;
+}
+
+/* Tech Brief heading on the green band: default h2 margin (0.83em) plus the
+   half-leading given back, as for the card headings below. */
+.panel-title {
+  margin-block: calc(0.83em + 0.225em);
+  line-height: 1.15;
 }
 
 .section-heading h2 {
@@ -670,9 +693,13 @@ h3 {
   background: rgba(255, 255, 255, 0.62);
 }
 
+/* Card headings: tighter leading for wrapped lines. The extra 0.225em margins
+   give back the half-leading removed (1.6 -> 1.15), so one-line headings keep
+   their original position. */
 .panel h3 {
-  margin: 0 0 12px;
+  margin: 0.225em 0 calc(12px + 0.225em);
   font-size: 28px;
+  line-height: 1.15;
   letter-spacing: -0.035em;
 }
 
@@ -798,6 +825,25 @@ h3 {
   object-position: center center;
 }
 
+/* Fade the photo itself instead of painting flat paper over it, so its edges
+   blend into the tinted page background. Same falloff as the overlay above. */
+@supports (mask-image: linear-gradient(#000, #000)) or (-webkit-mask-image: linear-gradient(#000, #000)) {
+  .page-identity-visual::after {
+    display: none;
+  }
+
+  .page-identity-photo {
+    -webkit-mask-image:
+      linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.02) 4%, rgba(0, 0, 0, 0.16) 9%, rgba(0, 0, 0, 0.58) 16%, #000 24%, #000 76%, rgba(0, 0, 0, 0.58) 84%, rgba(0, 0, 0, 0.16) 91%, rgba(0, 0, 0, 0.02) 96%, transparent 100%),
+      linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.03) 5%, rgba(0, 0, 0, 0.2) 12%, rgba(0, 0, 0, 0.7) 20%, #000 28%, #000 72%, rgba(0, 0, 0, 0.7) 80%, rgba(0, 0, 0, 0.2) 88%, rgba(0, 0, 0, 0.03) 95%, transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-image:
+      linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.02) 4%, rgba(0, 0, 0, 0.16) 9%, rgba(0, 0, 0, 0.58) 16%, #000 24%, #000 76%, rgba(0, 0, 0, 0.58) 84%, rgba(0, 0, 0, 0.16) 91%, rgba(0, 0, 0, 0.02) 96%, transparent 100%),
+      linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.03) 5%, rgba(0, 0, 0, 0.2) 12%, rgba(0, 0, 0, 0.7) 20%, #000 28%, #000 72%, rgba(0, 0, 0, 0.7) 80%, rgba(0, 0, 0, 0.2) 88%, rgba(0, 0, 0, 0.03) 95%, transparent 100%);
+    mask-composite: intersect;
+  }
+}
+
 .page-hero h1 {
   margin: 16px 0 14px;
   font-size: clamp(48px, 7vw, 76px);
@@ -852,8 +898,9 @@ h3 {
 }
 
 .placeholder-box h3 {
-  margin: 0 0 8px;
+  margin: 0.225em 0 calc(8px + 0.225em);
   font-size: 28px;
+  line-height: 1.15;
 }
 
 .placeholder-box p {
@@ -1014,8 +1061,9 @@ h3 {
 }
 
 .direct-contact h2 {
-  margin: 0 0 14px;
+  margin: 0.225em 0 calc(14px + 0.225em);
   font-size: 30px;
+  line-height: 1.15;
   letter-spacing: -0.04em;
 }
 
@@ -1309,7 +1357,7 @@ h3 {
 
   .earth-glow,
   .earth-sphere {
-    width: 320px;
+    width: min(320px, 100%);
   }
 
   .float-card {
@@ -1569,5 +1617,57 @@ select:focus-visible {
 
   .legal-section {
     padding: 24px 0;
+  }
+}
+
+/* Header language switch: while the primary navigation is collapsed, EN | FR
+   sits beside the Menu button instead of inside the closed menu. */
+.language-switch-mobile {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .site-nav {
+    gap: 12px;
+  }
+
+  .language-switch-mobile {
+    display: inline-flex;
+    margin-left: auto;
+    padding-top: 0;
+  }
+
+  .language-switch-mobile .language-option {
+    min-inline-size: 32px;
+    min-block-size: 44px;
+  }
+
+  .nav-links .language-switch {
+    display: none;
+  }
+}
+
+/* Keep logo, EN | FR and Menu on one row down to 320px (WCAG reflow). */
+@media (max-width: 374px) {
+  .site-nav {
+    gap: 8px;
+  }
+
+  .language-switch-mobile .language-option {
+    min-inline-size: 28px;
+  }
+}
+
+@media (max-width: 359px) {
+  .brand-logo {
+    width: 140px;
+  }
+
+  .language-switch-mobile {
+    gap: 4px;
+  }
+
+  .menu-btn {
+    padding-inline: 9px;
   }
 }
