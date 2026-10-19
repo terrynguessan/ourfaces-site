@@ -253,10 +253,19 @@ export const ATTRIBUTION_MARKERS = {
   ],
 };
 
+// Wording that presents findings as independently established or proven,
+// matched on normalizeForMatch text (lowercase, no accents). The reviewer
+// judges attribution per entry, not per sentence (run-7eaa279d), so this is
+// the deterministic backstop for every headline and sentence of a self-report.
+const INDEPENDENCE_WORDING = {
+  en: /\bindependently (?:verified|confirmed|established|validated|proven|tested)\b|\b(?:verified|confirmed|validated|established) (?:independently|by independent)\b|\bprov(?:e|en|es|ed)\b/,
+  fr: /\b(?:verifie|confirme|etabli|valide|prouve|demontre)e?s? (?:de (?:maniere|facon) independante|independamment|par des tiers)\b|\bprouv(?:e|ee|es|ees|ent)\b/,
+};
+
 /**
  * A vendor self-report (story.evidence.editorial.vendorSelfReport) must name
- * the reporting organization with a reporting verb in both summaries, so that
- * company-reported findings are never presented as independently established.
+ * the reporting organization with a reporting verb in both summaries, and no
+ * field may present the findings as independently established or proven.
  */
 export function checkAttribution(story, path = "story") {
   const editorial = story?.evidence?.editorial;
@@ -288,6 +297,17 @@ export function checkAttribution(story, path = "story") {
           .filter(Boolean)
           .join(", ")})`,
       });
+    for (const field of ["headline", "summary", "whyItMatters"]) {
+      const match = normalizeForMatch(story[lang]?.[field] ?? "").match(
+        INDEPENDENCE_WORDING[lang],
+      );
+      if (match)
+        errors.push({
+          code: "SELF_REPORT_OVERSTATED",
+          path: `${path}.${lang}.${field}`,
+          message: `"${match[0]}" presents ${name}'s own report as independently established`,
+        });
+    }
   }
   return errors;
 }

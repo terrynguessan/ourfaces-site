@@ -5,7 +5,8 @@
 // secure fetch -> claim extraction and editorial classification (F5,
 // editorial.mjs) -> claim verification against the original
 // article -> independent corroboration -> ranking -> EN/FR writing ->
-// deterministic checks (+ one repair pass) -> faithfulness review -> final
+// deterministic checks (+ one repair pass) -> faithfulness review (+ at most
+// one repair of rejected wording, checked and reviewed again) -> final
 // validation with validate.mjs.
 //
 // Claim VERIFICATION means a claim is entailed by a verbatim quote from the
@@ -223,7 +224,40 @@ const REPAIRABLE = new Set([
   "EN_LANGUAGE",
   "COPYRIGHT_OVERLAP",
   "ATTRIBUTION_MISSING",
+  "SELF_REPORT_OVERSTATED",
 ]);
+
+/** True when the final reviewer approved an entry without any reservation. */
+export function passesReview(verdict) {
+  return Boolean(
+    verdict &&
+    verdict.faithful &&
+    verdict.unsupportedSentences.length === 0 &&
+    verdict.translationIssues.length === 0 &&
+    !verdict.copyrightConcern,
+  );
+}
+
+// Hard cap on review repairs per run, whatever config.json says.
+export const MAX_REVIEW_REPAIRS = 1;
+
+/**
+ * The reviewer's objections as repair instructions, or null when a rewrite
+ * cannot address the rejection: a missing verdict, a copyright concern (the
+ * deterministic copyright check already passed, so the reviewer's view
+ * stands), or a rejection that names no sentence or French problem.
+ */
+export function reviewRepairProblems(verdict) {
+  if (!verdict || verdict.missing || verdict.copyrightConcern) return null;
+  const problems = [
+    ...verdict.unsupportedSentences.map(
+      (u) =>
+        `UNSUPPORTED (${u.problem}): "${shortText(u.sentence, 400)}" ${shortText(u.reason, 300)}`,
+    ),
+    ...verdict.translationIssues.map((t) => `FRENCH: ${shortText(t, 400)}`),
+  ];
+  return problems.length ? problems : null;
+}
 
 const API_ASSUMPTIONS = [
   "verified by the 2026-10-19 probe: web_search with strict json_schema output, max_tool_calls 1 accepted and respected, action.sources returned, search content in input_tokens, reasoning tokens in output_tokens, both models available",
@@ -1080,8 +1114,10 @@ export async function runResearch({
       return finish("error", `Writing failed: ${error.kind}: ${error.message}`);
     }
     const texts = new Map();
-    const acceptText = (entries) => {
+    // A repair may only replace the entries it was asked to fix.
+    const acceptText = (entries, onlyKeys = null) => {
       for (const s of entries) {
+        if (onlyKeys && !onlyKeys.has(s.key)) continue;
         const c = picked.find((p) => p.key === s.key);
         if (!c) continue;
         const allowed = new Set(
@@ -1157,7 +1193,10 @@ export async function runResearch({
           }),
           { schemaName: "repair" },
         );
-        acceptText(repaired.json.stories);
+        acceptText(
+          repaired.json.stories,
+          new Set(repairable.map((c) => c.key)),
+        );
         report.repairPass = { stories: repairable.map((c) => c.key) };
       } catch (error) {
         if (["QUOTA", "BUDGET"].includes(error.kind)) throw error;
@@ -1180,41 +1219,117 @@ export async function runResearch({
         `Only ${remaining.length} stories passed deterministic checks`,
       );
 
+    // The reviewer sees the same claims and source name the writer had, so
+    // that naming the publisher is not mistaken for an unsupported fact.
+    const reviewInput = (c) => ({
+      key: c.key,
+      publisher: c.publisher,
+      selfReportedBy: selfReportedBy(c),
+      claims: writingInput(c).claims,
+      en: texts.get(c.key).en,
+      fr: texts.get(c.key).fr,
+    });
+    const review = (list) =>
+      call("review", reviewPrompt({ stories: list.map(reviewInput) }), {
+        schemaName: "review",
+      });
     let reviewed;
     try {
-      reviewed = await call(
-        "review",
-        reviewPrompt({
-          stories: remaining.map((c) => ({
-            key: c.key,
-            selfReportedBy: selfReportedBy(c),
-            claims: writingInput(c).claims,
-            en: texts.get(c.key).en,
-            fr: texts.get(c.key).fr,
-          })),
-        }),
-        { schemaName: "review" },
-      );
+      reviewed = await review(remaining);
     } catch (error) {
       if (["QUOTA", "BUDGET"].includes(error.kind)) throw error;
       return finish("error", `Review failed: ${error.kind}: ${error.message}`);
     }
     const verdicts = new Map(reviewed.json.stories.map((r) => [r.key, r]));
-    remaining = remaining.filter((c) => {
+    const approved = new Set();
+    for (const c of remaining) {
       const r = verdicts.get(c.key);
-      const ok =
-        r &&
-        r.faithful &&
-        r.unsupportedSentences.length === 0 &&
-        r.translationIssues.length === 0 &&
-        !r.copyrightConcern;
       c.review = r ?? { missing: true };
-      if (!ok)
+      c.reviewedText = texts.get(c.key);
+      if (passesReview(r)) approved.add(c);
+    }
+
+    // Review repair (run-7eaa279d): rejected wording gets at most one
+    // rewrite. Only the rejected entries are rewritten; each rewrite must pass
+    // every deterministic check and a second, independent review (which is not
+    // shown the first review's objections). Anything else stays rejected.
+    const repairAttempts = Math.min(
+      Number.isInteger(config.limits.reviewRepairAttempts)
+        ? config.limits.reviewRepairAttempts
+        : 0,
+      MAX_REVIEW_REPAIRS,
+    );
+    const toRepair =
+      repairAttempts > 0
+        ? remaining.filter(
+            (c) =>
+              !approved.has(c) && reviewRepairProblems(verdicts.get(c.key)),
+          )
+        : [];
+    if (toRepair.length) {
+      report.reviewRepair = { stories: toRepair.map((c) => c.key) };
+      for (const c of toRepair)
+        c.reviewRepair = {
+          problems: reviewRepairProblems(verdicts.get(c.key)),
+          outcome: "not-rewritten",
+        };
+      const before = new Map(toRepair.map((c) => [c.key, texts.get(c.key)]));
+      try {
+        const repaired = await call(
+          "repair",
+          repairPrompt({
+            stories: toRepair.map((c) => ({
+              ...writingInput(c),
+              current: texts.get(c.key),
+              problems: c.reviewRepair.problems,
+            })),
+          }),
+          { schemaName: "repair" },
+        );
+        acceptText(repaired.json.stories, new Set(toRepair.map((c) => c.key)));
+      } catch (error) {
+        if (["QUOTA", "BUDGET"].includes(error.kind)) throw error;
+        report.reviewRepair.failed = error.kind;
+      }
+      const recheck = [];
+      for (const c of toRepair) {
+        const rewritten = texts.get(c.key);
+        if (JSON.stringify(rewritten) === JSON.stringify(before.get(c.key)))
+          continue;
+        c.reviewRepair.text = rewritten;
+        const list = deterministicIssues(c);
+        if (list.length) {
+          c.reviewRepair.outcome = `checks-failed: ${[...new Set(list.map((i) => i.code))].join(",")}`;
+          continue;
+        }
+        recheck.push(c);
+      }
+      if (recheck.length) {
+        let second = null;
+        try {
+          second = await review(recheck);
+        } catch (error) {
+          if (["QUOTA", "BUDGET"].includes(error.kind)) throw error;
+          report.reviewRepair.reviewFailed = error.kind;
+        }
+        const again = new Map(
+          (second?.json.stories ?? []).map((r) => [r.key, r]),
+        );
+        for (const c of recheck) {
+          const r = again.get(c.key);
+          c.reviewRepair.review = r ?? { missing: true };
+          c.reviewRepair.outcome = passesReview(r) ? "accepted" : "rejected";
+          if (passesReview(r)) approved.add(c);
+        }
+      }
+    }
+    remaining = remaining.filter((c) => {
+      if (!approved.has(c))
         Object.assign(c, {
           status: "dropped",
-          reason: r ? "REVIEW_REJECTED" : "REVIEW_MISSING",
+          reason: verdicts.get(c.key) ? "REVIEW_REJECTED" : "REVIEW_MISSING",
         });
-      return ok;
+      return approved.has(c);
     });
     if (remaining.length < config.limits.minStories)
       return finish(

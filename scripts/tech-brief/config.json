@@ -93,6 +93,7 @@
     "maxClaimsPerStory": 5,
     "minVerifiedClaims": 2,
     "maxCoreReextractions": 3,
+    "reviewRepairAttempts": 1,
     "minStories": 3,
     "maxStories": 5,
     "minCategories": 2,

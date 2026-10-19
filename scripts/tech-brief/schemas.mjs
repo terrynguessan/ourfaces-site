@@ -26,6 +26,15 @@ const object = (properties) => ({
 });
 const array = (items, maxItems) => ({ type: "array", items, maxItems });
 
+export const REVIEW_PROBLEMS = [
+  "adds-information",
+  "overstates",
+  "changes-meaning",
+  "drops-qualifier",
+  "missing-attribution",
+  "presented-as-independent",
+];
+
 const discoveryCandidate = object({
   url: string,
   headline: string,
@@ -97,7 +106,16 @@ export const SCHEMAS = {
       object({
         key,
         faithful: { type: "boolean" },
-        unsupportedSentences: array(string, 10),
+        // Each rejected sentence carries a reason, so a rejection can be
+        // diagnosed and repaired (run-7eaa279d recorded sentences only).
+        unsupportedSentences: array(
+          object({
+            sentence: string,
+            problem: { type: "string", enum: REVIEW_PROBLEMS },
+            reason: string,
+          }),
+          10,
+        ),
         translationIssues: array(string, 10),
         copyrightConcern: { type: "boolean" },
       }),
