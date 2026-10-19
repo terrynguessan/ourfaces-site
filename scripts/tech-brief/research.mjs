@@ -41,6 +41,7 @@ import {
   verificationPrompt,
   writingPrompt,
 } from "./prompts.mjs";
+import { productionResearchBlock } from "./schedule.mjs";
 import {
   cleanText,
   containsQuote,
@@ -420,6 +421,12 @@ export async function runResearch({
   }
   if (new Date(`${editionDate}T00:00:00Z`).getUTCDay() !== 6)
     return finish("blocked", "Edition date must be a Saturday");
+  // Phase 4: a production run researches a complete week only. Dry runs keep
+  // working for any past or current edition.
+  if (mode === "production") {
+    const block = productionResearchBlock(editionDate, now);
+    if (block) return finish("blocked", block);
+  }
   if (
     typeof monthSpentUsd !== "number" ||
     !Number.isFinite(monthSpentUsd) ||
@@ -1456,6 +1463,11 @@ if (
     fail("--allow-provisional-policy is not available in production mode");
   if (!args.includes("--paid"))
     fail("Refusing to call the OpenAI API without --paid");
+  // Checked again in runResearch; here it also prevents the model-list request.
+  if (mode === "production") {
+    const block = productionResearchBlock(editionDate, new Date());
+    if (block) fail(block);
+  }
   const repoSrc = fileURLToPath(new URL("../../src/", import.meta.url));
   const outDir = resolve(out);
   const rel = relative(repoSrc, outDir);

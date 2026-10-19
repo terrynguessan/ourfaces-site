@@ -14,7 +14,8 @@ import { createFetcher } from "../fetch.mjs";
 import { extractArticle } from "../html.mjs";
 import { OpenAIError, createClient, createMeter } from "../openai.mjs";
 import { EXIT, loadConfig, runResearch } from "../research.mjs";
-import { loadSourcePolicy, validateEdition } from "../validate.mjs";
+import { currentEdition } from "../schedule.mjs";
+import { addDays, loadSourcePolicy, validateEdition } from "../validate.mjs";
 import {
   fixture,
   fixtureJson,
@@ -699,7 +700,7 @@ async function run(s = {}) {
   });
   const result = await runResearch({
     edition: EDITION,
-    now: NOW,
+    now: s.now ?? NOW,
     config: cfg,
     policy: s.policy ?? policy,
     history: s.history ?? [],
@@ -1336,6 +1337,41 @@ describe(
           (w) => w.code === "SOURCE_POLICY_PROVISIONAL",
         ),
       );
+    });
+
+    test("Phase 4 cutoff guard: production research starts only after Saturday 20:00 Eastern and before the next cutoff", async () => {
+      const approved = { ...policy, status: "approved" };
+      const production = (now) =>
+        run({
+          mode: "production",
+          allowProvisionalPolicy: false,
+          policy: approved,
+          now,
+        });
+      // EDITION 2026-10-24: cutoff Saturday 20:00 EDT = 2026-10-25T00:00Z.
+      const early = await production(new Date("2026-10-24T23:59:59.999Z"));
+      assert.equal(early.status, "blocked");
+      assert.equal(EXIT[early.status], 4);
+      assert.match(early.report.reason, /cannot start before its cutoff/);
+      assert.equal(
+        early.requests.length,
+        0,
+        "no API request before the cutoff",
+      );
+      assert.equal(early.report.budget.runTotalCountedUsd, 0);
+
+      const atCutoff = await production(new Date("2026-10-25T00:00:00.000Z"));
+      assert.equal(atCutoff.status, "edition", atCutoff.report.reason);
+
+      // The next edition's cutoff (Saturday 31 Oct 20:00 EDT) makes it stale.
+      const stale = await production(new Date("2026-11-01T00:00:00.000Z"));
+      assert.equal(stale.status, "blocked");
+      assert.match(stale.report.reason, /is stale/);
+      assert.equal(stale.requests.length, 0);
+
+      // Dry runs keep their historical behaviour, before the cutoff included.
+      const dryRun = await run({ now: new Date("2026-10-24T23:59:59.999Z") });
+      assert.equal(dryRun.status, "edition", dryRun.report.reason);
     });
 
     test("dry-run editions are labelled with the policy status and override", async () => {
@@ -2656,6 +2692,31 @@ describe("research CLI guards (no API calls)", () => {
     ]);
     assert.equal(r.status, 4);
     assert.match(r.stderr, /must not be inside src/);
+  });
+  test("refuses a production run before its cutoff or after it went stale, before any network request", () => {
+    // Relative to the real clock: next week's edition has not reached its
+    // cutoff; an edition from four weeks ago is stale. Both are refused before
+    // the API key is even looked at.
+    const now = new Date();
+    for (const [edition, message] of [
+      [addDays(currentEdition(now), 7), /cannot start before its cutoff/],
+      [addDays(currentEdition(now), -28), /is stale/],
+    ]) {
+      const r = runCli([
+        "--edition",
+        edition,
+        "--out",
+        tmpdir(),
+        "--month-spent",
+        "0",
+        "--paid",
+        "--mode",
+        "production",
+      ]);
+      assert.equal(r.status, 4);
+      assert.match(r.stderr, message);
+      assert.doesNotMatch(r.stderr, /OPENAI_API_KEY/);
+    }
   });
   test("reports a missing API key without calling anything", () => {
     const r = runCli([
