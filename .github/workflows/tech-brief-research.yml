@@ -1,0 +1,190 @@
+# Tech Brief research (Saturday, 20:00 America/New_York, with fallbacks).
+# Reserve budget -> research -> encrypt -> upload -> settle and register handoff.
+#
+# Off by default: every job depends on `plan`, which runs only when the
+# repository variable TECH_BRIEF_AUTOMATION is "enabled" (schedules and manual
+# dispatches) or "manual" (manual dispatches only); automation.mjs checks the
+# state again and also requires refs/heads/main and an approved sources.json. Paid research needs the tech-brief-research
+# environment (OPENAI_API_KEY, TECH_BRIEF_ARTIFACT_KEY) and the
+# tech-brief-ledger branch; neither exists until separately set up.
+
+name: Tech Brief research
+
+on:
+  schedule:
+    - cron: "17 20 * * 6"
+      timezone: "America/New_York"
+    - cron: "47 22 * * 6"
+      timezone: "America/New_York"
+    - cron: "17 7 * * 0"
+      timezone: "America/New_York"
+  workflow_dispatch:
+    inputs:
+      edition:
+        description: "Recovery only: Saturday edition (YYYY-MM-DD); empty for the current edition"
+        required: false
+        default: ""
+      supersedes:
+        description: "Recovery only: the unsettled reservation this run replaces; empty if none"
+        required: false
+        default: ""
+
+permissions: {}
+
+concurrency:
+  group: tech-brief
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    if: vars.TECH_BRIEF_AUTOMATION == 'enabled' || (vars.TECH_BRIEF_AUTOMATION == 'manual' && github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      run: ${{ steps.plan.outputs.run }}
+      edition: ${{ steps.plan.outputs.edition }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: tech-brief-ledger
+          path: ledger
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - id: plan
+        env:
+          TECH_BRIEF_AUTOMATION: ${{ vars.TECH_BRIEF_AUTOMATION }}
+          EDITION: ${{ inputs.edition }}
+        run: node scripts/tech-brief/automation.mjs plan-research --ledger-dir ledger --content-dir src/content/tech-brief --edition "$EDITION"
+
+  reserve:
+    needs: plan
+    if: needs.plan.outputs.run == 'production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    outputs:
+      reservation_id: ${{ steps.reserve.outputs.reservation_id }}
+      month_spent: ${{ steps.reserve.outputs.month_spent }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: tech-brief-ledger
+          path: ledger
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - id: reserve
+        env:
+          EDITION: ${{ needs.plan.outputs.edition }}
+          SUPERSEDES: ${{ inputs.supersedes }}
+        run: node scripts/tech-brief/automation.mjs reserve --ledger-dir ledger --edition "$EDITION" --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" --supersedes "$SUPERSEDES"
+
+  research:
+    needs: [plan, reserve]
+    if: needs.reserve.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: tech-brief-research
+    permissions:
+      contents: read
+    outputs:
+      status: ${{ steps.outputs.outputs.status }}
+      summary: ${{ steps.outputs.outputs.summary }}
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      bundle_digest: ${{ steps.seal.outputs.bundle_digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - name: Research (paid)
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          EDITION: ${{ needs.plan.outputs.edition }}
+          MONTH_SPENT: ${{ needs.reserve.outputs.month_spent }}
+        # A run without an edition is not a job failure: it is settled below.
+        run: node scripts/tech-brief/research.mjs --paid --mode production --edition "$EDITION" --month-spent "$MONTH_SPENT" --history src/content/tech-brief/editions --out "$RUNNER_TEMP/research" || true
+      - id: outputs
+        run: node scripts/tech-brief/automation.mjs research-outputs --out "$RUNNER_TEMP/research"
+      - id: seal
+        if: steps.outputs.outputs.status == 'edition'
+        env:
+          TECH_BRIEF_ARTIFACT_KEY: ${{ secrets.TECH_BRIEF_ARTIFACT_KEY }}
+        run: node scripts/tech-brief/automation.mjs seal --research-dir "$RUNNER_TEMP/research" --out-dir "$RUNNER_TEMP/bundle"
+      - id: upload
+        if: steps.outputs.outputs.status == 'edition'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.seal.outputs.artifact_name }}
+          path: ${{ steps.seal.outputs.path }}
+          retention-days: 90
+          if-no-files-found: error
+          overwrite: false
+          compression-level: 0
+      - name: Remove plaintext research output
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/research"
+
+  settle:
+    needs: [plan, reserve, research]
+    # Runs after a failed research job too; without a report the full
+    # reservation simply stays in the ledger.
+    if: always() && needs.reserve.result == 'success' && needs.research.outputs.summary != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: tech-brief-ledger
+          path: ledger
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - env:
+          RESERVATION: ${{ needs.reserve.outputs.reservation_id }}
+          SUMMARY: ${{ needs.research.outputs.summary }}
+          ARTIFACT_ID: ${{ needs.research.outputs.artifact_id }}
+          BUNDLE_DIGEST: ${{ needs.research.outputs.bundle_digest }}
+        run: |
+          if [ -n "$ARTIFACT_ID" ]; then
+            node scripts/tech-brief/automation.mjs settle --ledger-dir ledger --reservation "$RESERVATION" --summary "$SUMMARY" \
+              --workflow-run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" --artifact-id "$ARTIFACT_ID" --bundle-digest "$BUNDLE_DIGEST"
+          else
+            node scripts/tech-brief/automation.mjs settle --ledger-dir ledger --reservation "$RESERVATION" --summary "$SUMMARY"
+          fi
+
+  alert:
+    needs: [plan, reserve, research, settle]
+    if: failure()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue create --repo "$GITHUB_REPOSITORY" --title "Tech Brief research run failed" --body "Run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID needs attention. Unsettled reservations stay counted in the ledger."
