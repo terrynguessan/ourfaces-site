@@ -1,0 +1,2 @@
+{"seq":1,"type":"init","prev":"0000000000000000000000000000000000000000000000000000000000000000","at":"2026-10-19T22:20:07.732Z","schema":"ourfaces-tech-brief-ledger/1"}
+{"seq":2,"type":"opening","prev":"48555d05c77e5906d8890bad92e56e1eb81531781654394d77c7f5a635b94b6b","at":"2026-10-19T22:20:07.825Z","month":"2026-10","amountMicroUsd":540000,"reason":"opening-balance","ref":"oct-probe-dryruns-1-3"}
