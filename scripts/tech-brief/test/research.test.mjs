@@ -392,12 +392,19 @@ function makeTransport(s = {}) {
         const json = s.discovery
           ? s.discovery(data.categories, candidates)
           : { candidates };
+        const returned = s.discoverySources
+          ? s.discoverySources(data.categories, sources)
+          : sources;
+        const actions = s.discoveryActions
+          ? s.discoveryActions(data.categories)
+          : undefined;
         return stage === "discovery"
-          ? ok(stage, json, { searches: 4, sources })
+          ? ok(stage, json, { searches: 4, sources: returned, actions })
           : ok(stage, undefined, {
               text: `Notes: ${json.candidates.map((c) => c.url).join(" ")}`,
               searches: 4,
-              sources,
+              sources: returned,
+              actions,
             });
       }
       case "discoveryConversion": {
@@ -444,6 +451,36 @@ function makeTransport(s = {}) {
             claimId,
             verdict: s.verdict ? s.verdict(key, claimId, requests) : "entailed",
             reason: "Quote supports the claim.",
+          })),
+        });
+      case "coreClaim": {
+        // Default: the model finds no better single quote.
+        const lines = untrustedLines(body);
+        const spec = s.coreClaim ? s.coreClaim(data, lines) : null;
+        if (!spec)
+          return ok(stage, {
+            found: false,
+            claim: { text: "", paragraphId: "p1", quote: "" },
+          });
+        const line = lines.find(
+          (l) => /^\[p\d+\]/.test(l) && l.includes(spec.quote.slice(0, 40)),
+        );
+        return ok(stage, {
+          found: true,
+          claim: {
+            text: spec.text,
+            paragraphId: line ? line.match(/^\[(p\d+)\]/)[1] : "p1",
+            quote: spec.quote,
+          },
+        });
+      }
+      case "reverification":
+        return ok(stage, {
+          results: data.items.map(({ key, claimId }) => ({
+            key,
+            claimId,
+            verdict: s.reverdict ? s.reverdict(key, requests) : "entailed",
+            reason: "Re-checked.",
           })),
         });
       case "writing":
@@ -624,12 +661,12 @@ describe(
         reasonOf(report, "kappa"),
         /^DATE_WINDOW: article date 2026-09-01/,
       );
+      // With 8 candidates per call (F6) the seventh candidate is now considered.
       assert.equal(
-        byUrl(report, "iota").length,
-        0,
-        "candidates beyond the per-call limit are ignored",
+        reasonOf(report, "iota"),
+        "SOURCE_UNAVAILABLE: ROBOTS_DISALLOWED",
       );
-      assert.equal(report.candidates.length, 12);
+      assert.equal(report.candidates.length, 13);
 
       // Requests: stored nowhere, standard tier, strict schemas, search limited.
       for (const { body } of requests) {
@@ -1159,6 +1196,418 @@ describe(
       );
       const again = validateEdition(edition, { policy, now: NOW });
       assert.deepEqual(again.errors, []);
+    });
+
+    // --- Corrections after dry run run-26e47111 ---------------------------------
+
+    const headlineOf = (requests, key) =>
+      taskData(
+        requests.find(
+          (r) => r.stage === "extraction" && taskData(r.body).key === key,
+        ).body,
+      ).headline;
+    const alphaCorePartial = (key, claimId, reqs) =>
+      headlineOf(reqs, key) === HEADLINES.alpha && claimId === "c1"
+        ? "partial"
+        : "entailed";
+    const BETTER_CORE = {
+      text: "Version 5.0 adds an incremental mode that stores the results of each run in a local cache.",
+      quote:
+        "The headline feature is incremental mode, which stores the results of each run in a local cache and reuses them the next time you check the project.",
+    };
+
+    test("F1: discovery diagnostics record actions, returned URLs and provenance evidence", async () => {
+      const { report } = await run({
+        discoveryActions: (cats) =>
+          cats.includes("applied-ai")
+            ? [
+                { type: "search" },
+                { type: "search" },
+                { type: "open_page", url: urlOf("delta") },
+                { type: "find_in_page", url: urlOf("beta") },
+              ]
+            : undefined,
+      });
+      const [first, second] = report.discovery.calls;
+      assert.deepEqual(
+        first.actions.map((a) => a.type),
+        ["search", "search", "open_page", "find_in_page"],
+      );
+      assert.deepEqual(
+        [first.toolItems, first.billableSearches, first.otherActions],
+        [4, 2, 2],
+      );
+      assert.ok(first.sources.includes(urlOf("beta")));
+      assert.deepEqual(first.actionUrls, [urlOf("delta"), urlOf("beta")]);
+      assert.equal(second.billableSearches, 4);
+      assert.ok(second.actions.every((a) => a.queries.length === 1));
+
+      const beta = byUrl(report, "beta")[0];
+      assert.deepEqual(
+        [
+          beta.provenance.matched,
+          beta.provenance.origin,
+          beta.provenance.exact,
+        ],
+        [true, "search-source", true],
+      );
+      const omega = byUrl(report, "omega")[0];
+      assert.equal(omega.provenance.matched, false);
+      assert.equal(omega.provenance.sameHostSourceCount, 0);
+      assert.equal(omega.provenance.nearest, null);
+      // Only URLs, queries and verified quotes are kept, never other article prose.
+      assert.ok(
+        !JSON.stringify(report).includes(
+          "Thank you to everyone who tested the release candidates",
+        ),
+      );
+    });
+
+    test("F3: a URL returned only by a page-open action is accepted as provenance", async () => {
+      const { status, report } = await run({
+        discoverySources: (cats, sources) =>
+          sources.filter((u) => u !== urlOf("delta")),
+        discoveryActions: (cats) =>
+          cats.includes("applied-ai")
+            ? [{ type: "search" }, { type: "open_page", url: urlOf("delta") }]
+            : undefined,
+      });
+      assert.equal(status, "edition", report.reason);
+      assert.equal(byUrl(report, "delta")[0].provenance.origin, "action-url");
+    });
+
+    test("F3: scheme and tracking variants match; altered paths and query values stay rejected", async () => {
+      const altered = urlOf("gamma").replace(
+        "test-flakiness-study",
+        "test-flakiness",
+      );
+      const { report } = await run({
+        discoverySources: (cats, sources) =>
+          sources.map((u) =>
+            u === urlOf("alpha")
+              ? `${u.replace("https://", "http://")}?utm_source=openai`
+              : u === urlOf("epsilon")
+                ? `${u}?page=2`
+                : u,
+          ),
+        discovery: (cats, candidates) => ({
+          candidates: candidates.map((c) =>
+            c.url === urlOf("gamma") ? { ...c, url: altered } : c,
+          ),
+        }),
+      });
+      const alpha = byUrl(report, "alpha")[0];
+      assert.deepEqual(
+        [alpha.provenance.matched, alpha.provenance.exact],
+        [true, false],
+      );
+      assert.match(reasonOf(report, "epsilon"), /^FABRICATED_URL/);
+      const gamma = report.candidates.find((c) => c.url === altered);
+      assert.match(gamma.reason, /^FABRICATED_URL/);
+      assert.equal(gamma.provenance.sameHostSourceCount, 1);
+      assert.equal(gamma.provenance.nearest.url, urlOf("gamma"));
+      assert.ok(gamma.provenance.nearest.similarity >= 0.8);
+    });
+
+    test("F2: the dry-run pattern (5 searches + 1 page open) is billed for searches and counted conservatively", async () => {
+      const { status, report } = await run({
+        discoveryActions: () => [
+          ...Array.from({ length: 5 }, () => ({ type: "search" })),
+          { type: "open_page", url: urlOf("alpha") },
+        ],
+      });
+      assert.equal(status, "edition", report.reason);
+      const discovery = report.budget.calls.filter(
+        (c) => c.stage === "discovery",
+      );
+      for (const c of discovery) {
+        assert.deepEqual(
+          [c.searches, c.otherActions, c.toolItems, c.searchLimit],
+          [5, 1, 6, 5],
+        );
+        assert.equal(c.costUsd, 0.0575);
+        assert.equal(c.unknownChargeUsd, 0.01);
+        assert.ok(c.costUsd + c.unknownChargeUsd <= c.worstCaseUsd);
+      }
+      assert.deepEqual(report.budget.estimateOverruns, []);
+      assert.equal(report.budget.runUnknownChargesUsd, 0.02);
+    });
+
+    test("F2: more web search items than budgeted stop the run before any further call", async () => {
+      const { status, report, requests } = await run({
+        discoveryActions: () =>
+          Array.from({ length: 8 }, () => ({ type: "search" })),
+      });
+      assert.equal(status, "budget-stop");
+      assert.match(report.reason, /Estimate overrun in discovery/);
+      assert.equal(report.budget.estimateOverruns.length, 1);
+      assert.equal(report.budget.estimateOverruns[0].toolItemBudget, 7);
+      assert.equal(requests.length, 1, "nothing was sent after the overrun");
+    });
+
+    test("F4: extraction instructions require claims to say no more than their quotes", async () => {
+      const { requests } = await run();
+      const extraction = requests.find((r) => r.stage === "extraction").body;
+      assert.match(
+        extraction.instructions,
+        /restate only what its own quote says/,
+      );
+      assert.match(extraction.instructions, /Do not build c1 by combining/);
+      assert.equal(extraction.reasoning.effort, "medium");
+    });
+
+    test("F4: a core claim its quote did not fully support is re-extracted once, re-verified and kept", async () => {
+      const { status, report, requests, edition } = await run({
+        verdict: alphaCorePartial,
+        coreClaim: (data) =>
+          data.headline === HEADLINES.alpha ? BETTER_CORE : null,
+      });
+      assert.equal(status, "edition", report.reason);
+      const alpha = byUrl(report, "alpha")[0];
+      assert.equal(alpha.verification.status, "verified");
+      assert.equal(
+        alpha.verification.coreReextraction.previous.verdict,
+        "partial",
+      );
+      assert.equal(alpha.verification.coreReextraction.outcome, "entailed");
+      const c1 = alpha.verification.claims.find((c) => c.id === "c1");
+      assert.deepEqual([c1.reextracted, c1.text], [true, BETTER_CORE.text]);
+      assert.equal(requests.filter((r) => r.stage === "coreClaim").length, 1);
+      assert.equal(
+        requests.filter((r) => r.stage === "reverification").length,
+        1,
+      );
+      const core = requests.find((r) => r.stage === "coreClaim").body;
+      assert.ok(
+        untrustedLines(core).some((l) => l.startsWith("[rejected claim]")),
+        "the rejected claim travels as untrusted data",
+      );
+      const stages = Object.fromEntries(
+        report.budget.byStage.map((s) => [s.stage, s]),
+      );
+      assert.ok(stages.coreReextraction.costUsd > 0);
+      assert.ok(stages.reverification.costUsd > 0);
+      const story = edition.stories.find((s) => s.url === urlOf("alpha"));
+      assert.equal(story.evidence.verification[0].claim, BETTER_CORE.text);
+    });
+
+    test("F4: thresholds are unchanged - unverifiable replacements are still dropped", async () => {
+      const notFound = await run({
+        verdict: alphaCorePartial,
+        coreClaim: (data) =>
+          data.headline === HEADLINES.alpha
+            ? {
+                text: "Invented.",
+                quote:
+                  "This sentence does not appear anywhere in the article text at all.",
+              }
+            : null,
+      });
+      assert.equal(
+        byUrl(notFound.report, "alpha")[0].verification.coreReextraction
+          .outcome,
+        "QUOTE_NOT_FOUND",
+      );
+      assert.equal(
+        notFound.requests.filter((r) => r.stage === "reverification").length,
+        0,
+      );
+      assert.match(reasonOf(notFound.report, "alpha"), /^UNSUPPORTED_CLAIMS/);
+
+      const stillPartial = await run({
+        verdict: alphaCorePartial,
+        coreClaim: (data) =>
+          data.headline === HEADLINES.alpha ? BETTER_CORE : null,
+        reverdict: () => "partial",
+      });
+      assert.equal(
+        byUrl(stillPartial.report, "alpha")[0].verification.coreReextraction
+          .outcome,
+        "partial",
+      );
+      assert.match(
+        reasonOf(stillPartial.report, "alpha"),
+        /^UNSUPPORTED_CLAIMS/,
+      );
+      // A replacement that failed re-verification never replaces the original.
+      const keptCore = byUrl(stillPartial.report, "alpha")[0].verification
+        .claims[0];
+      assert.equal(keptCore.reextracted, undefined);
+      assert.equal(keptCore.text, CLAIMS[HEADLINES.alpha].claims[0][0]);
+
+      const noQuote = await run({ verdict: alphaCorePartial });
+      assert.equal(
+        byUrl(noQuote.report, "alpha")[0].verification.coreReextraction.outcome,
+        "NO_SINGLE_QUOTE",
+      );
+    });
+
+    test("F4: no re-extraction when the story could not pass anyway, and never more than the configured number", async () => {
+      const allPartial = await run({ verdict: () => "partial" });
+      assert.equal(
+        allPartial.requests.filter((r) => r.stage === "coreClaim").length,
+        0,
+      );
+
+      const limited = structuredClone(config);
+      limited.limits.maxCoreReextractions = 1;
+      const many = await run({
+        config: limited,
+        verdict: (key, claimId) => (claimId === "c1" ? "partial" : "entailed"),
+        coreClaim: (data) =>
+          data.headline === HEADLINES.alpha ? BETTER_CORE : null,
+      });
+      assert.equal(
+        many.requests.filter((r) => r.stage === "coreClaim").length,
+        1,
+      );
+    });
+
+    test("F6: discovery asks for publisher diversity and up to 8 candidates; at most 2 per site are fetched", async () => {
+      const extra = ["/blog/a", "/blog/b", "/blog/c"].map(
+        (p) => `https://www.alpha-devtools.com:${server.port}${p}`,
+      );
+      const { report, requests } = await run({
+        discovery: (cats, candidates) => ({
+          candidates: cats.includes("applied-ai")
+            ? candidates
+            : [
+                ...candidates.slice(0, 5),
+                ...extra.map((url) => ({ ...candidates[1], url })),
+              ],
+        }),
+        discoverySources: (cats, sources) => [...sources, ...extra],
+      });
+      const body = requests.find((r) => r.stage === "discovery").body;
+      assert.match(body.instructions, /at most one candidate per publisher/);
+      assert.match(body.instructions, /not a URL you reconstructed or guessed/);
+      assert.equal(taskData(body).maxCandidates, 8);
+      const capped = report.candidates.filter((c) =>
+        /^SITE_CAP/.test(c.reason ?? ""),
+      );
+      assert.deepEqual(
+        capped.map((c) => new URL(c.url).pathname),
+        ["/blog/b", "/blog/c"],
+      );
+      for (const path of ["/blog/b", "/blog/c"])
+        assert.equal(
+          server.counts.requests[`www.alpha-devtools.com${path}`] ?? 0,
+          0,
+          `${path} was never fetched`,
+        );
+    });
+
+    // --- A1: distinct evidence per supported claim ---------------------------
+
+    test("A1: a claim reusing another claim's quote does not count at extraction", async () => {
+      const { report, requests } = await run({
+        extraction: (headline, spec) => {
+          if (headline === HEADLINES.gamma)
+            spec.claims[1] = [
+              "Fixtures shared and modified across tests caused most intermittent failures.",
+              spec.claims[0][1],
+            ];
+        },
+      });
+      const gamma = byUrl(report, "gamma")[0];
+      assert.match(gamma.reason, /^INSUFFICIENT_DISTINCT_EVIDENCE/);
+      assert.deepEqual(gamma.verification.duplicates, [
+        { id: "c2", of: "c1", reason: "same-evidence" },
+      ]);
+      const verification = taskData(
+        requests.find((r) => r.stage === "verification").body,
+      );
+      const gammaKey = byUrl(report, "gamma")[0].key;
+      assert.ok(
+        !verification.items.some((i) => i.key === gammaKey),
+        "a story that cannot pass is not sent for verification",
+      );
+    });
+
+    test("A1: a superficially reworded duplicate cannot satisfy the two-claim minimum", async () => {
+      const { report } = await run({
+        extraction: (headline, spec) => {
+          if (headline === HEADLINES.beta)
+            spec.claims[1] = [
+              "Schema-constrained responses are available on every API tier now.",
+              "Structured outputs are now generally available for all API tiers",
+            ];
+        },
+        verdict: (key, claimId, reqs) =>
+          headlineOf(reqs, key) === HEADLINES.beta && claimId === "c3"
+            ? "partial"
+            : "entailed",
+      });
+      const beta = byUrl(report, "beta")[0];
+      assert.equal(beta.verification.status, "failed");
+      assert.equal(beta.verification.distinctSupported, 1);
+      assert.deepEqual(beta.verification.duplicates, [
+        { id: "c2", of: "c1", reason: "same-fact" },
+      ]);
+      assert.match(beta.reason, /^INSUFFICIENT_DISTINCT_EVIDENCE/);
+    });
+
+    test("A1: the re-extraction path cannot pass by repeating another claim's evidence", async () => {
+      const alphaClaims = CLAIMS[HEADLINES.alpha].claims;
+      const { report, requests } = await run({
+        // c1 and c3 partial: only c2 supports the story besides the main claim.
+        verdict: (key, claimId, reqs) =>
+          headlineOf(reqs, key) === HEADLINES.alpha &&
+          ["c1", "c3"].includes(claimId)
+            ? "partial"
+            : "entailed",
+        // The replacement main claim reuses c2's quote.
+        coreClaim: (data) =>
+          data.headline === HEADLINES.alpha
+            ? {
+                text: "Version 5.0 re-checks only changed files and the files that depend on them.",
+                quote: alphaClaims[1][1],
+              }
+            : null,
+      });
+      assert.equal(
+        requests.filter((r) => r.stage === "reverification").length,
+        1,
+      );
+      const alpha = byUrl(report, "alpha")[0];
+      assert.equal(alpha.verification.coreReextraction.outcome, "entailed");
+      assert.equal(alpha.verification.status, "failed");
+      assert.equal(alpha.verification.distinctSupported, 1);
+      assert.deepEqual(alpha.verification.duplicates, [
+        { id: "c2", of: "c1", reason: "same-evidence" },
+      ]);
+      assert.match(alpha.reason, /^INSUFFICIENT_DISTINCT_EVIDENCE/);
+    });
+
+    test("A1: genuinely distinct facts from the same paragraph still verify the story", async () => {
+      const { status, report } = await run();
+      assert.equal(status, "edition", report.reason);
+      const beta = byUrl(report, "beta")[0];
+      const [c1, c2] = beta.verification.claims;
+      assert.equal(
+        c1.paragraphId,
+        c2.paragraphId,
+        "both quotes are in one paragraph",
+      );
+      assert.equal(beta.verification.distinctSupported, 3);
+      assert.deepEqual(beta.verification.duplicates, []);
+      assert.equal(beta.status, "selected");
+    });
+
+    test("A1: malformed evidence (too-short claim, missing paragraph) never counts", async () => {
+      const { report } = await run({
+        extraction: (headline, spec) => {
+          if (headline === HEADLINES.gamma)
+            spec.claims[1] = ["Yes.", spec.claims[1][1]];
+          if (headline === HEADLINES.delta)
+            spec.claims[1] = [
+              spec.claims[1][0],
+              "This quote is not in any paragraph of the article text.",
+            ];
+        },
+      });
+      assert.match(reasonOf(report, "gamma"), /^QUOTES_NOT_FOUND/);
+      assert.match(reasonOf(report, "delta"), /^QUOTES_NOT_FOUND/);
     });
   },
 );

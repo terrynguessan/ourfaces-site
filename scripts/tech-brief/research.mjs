@@ -25,6 +25,7 @@ import {
   fetchTransport,
 } from "./openai.mjs";
 import {
+  coreReextractionPrompt,
   discoveryConversionPrompt,
   discoveryPrompt,
   extractionPrompt,
@@ -36,8 +37,13 @@ import {
 import {
   cleanText,
   containsQuote,
+  extractNumbers,
   guessLanguage,
+  normalizeForMatch,
+  sharedRuns,
+  tokenize,
   topicSimilarity,
+  wordCount,
 } from "./text.mjs";
 import {
   CATEGORIES,
@@ -59,6 +65,140 @@ import {
   verifyAgainstArticle,
 } from "./validate.mjs";
 
+/**
+ * Provenance key for matching a candidate URL against URLs returned by the
+ * web search tool. Starts from normalizeUrl (lowercase host, no www, no
+ * fragment, no known tracking parameters, sorted remaining parameters, no
+ * trailing slash) and additionally:
+ * - treats http and https forms of the same URL as one page;
+ * - applies RFC 3986 percent-encoding normalization to the path (uppercase
+ *   hex; unreserved characters decoded).
+ * Host, path and all non-tracking query parameters must still match exactly.
+ */
+export function provenanceKey(raw) {
+  const url = new URL(normalizeUrl(raw));
+  if (url.protocol !== "https:" && url.protocol !== "http:")
+    throw new Error(`unsupported scheme ${url.protocol}`);
+  if (url.username || url.password) throw new Error("credentials in URL");
+  url.protocol = "https:";
+  url.pathname = url.pathname.replace(/%[0-9a-f]{2}/gi, (escape) => {
+    const ch = String.fromCharCode(parseInt(escape.slice(1), 16));
+    return /[A-Za-z0-9\-._~]/.test(ch) ? ch : escape.toUpperCase();
+  });
+  return url.href;
+}
+
+/** Diagnostics for a candidate URL that matched no returned source (F1). */
+function provenanceMiss(candidateKey, sourceIndex) {
+  const host = new URL(candidateKey).hostname;
+  const sameHost = [...sourceIndex.entries()].filter(
+    ([key]) => new URL(key).hostname === host,
+  );
+  const path = new URL(candidateKey).pathname.replace(/[/_-]+/g, " ");
+  let nearest = null;
+  for (const [key, source] of sameHost) {
+    const similarity = topicSimilarity(
+      path,
+      new URL(key).pathname.replace(/[/_-]+/g, " "),
+    );
+    if (!nearest || similarity > nearest.similarity)
+      nearest = {
+        url: source.url,
+        origin: source.origin,
+        similarity: Math.round(similarity * 100) / 100,
+      };
+  }
+  return {
+    matched: false,
+    candidateKey,
+    sameHostSourceCount: sameHost.length,
+    sameHostSources: sameHost.slice(0, 5).map(([, s]) => s.url),
+    nearest,
+  };
+}
+
+// A1: what makes two supported claims count as one.
+export const DISTINCT_EVIDENCE = Object.freeze({
+  // Quotes overlapping on at least this share of the shorter quote's words
+  // are the same evidence (identical quotes, or one inside the other).
+  sameEvidenceOverlap: 0.8,
+  // Claims this similar in wording, with the same numbers, state the same fact.
+  sameFactSimilarity: 0.75,
+  minClaimWords: 3,
+});
+
+/** A claim with a verbatim quote, a valid paragraph id and a real statement. */
+function usableClaim(cl) {
+  return (
+    cl?.quoteFound === true &&
+    typeof cl.text === "string" &&
+    typeof cl.quote === "string" &&
+    wordCount(cl.text) >= DISTINCT_EVIDENCE.minClaimWords &&
+    wordCount(cl.quote) >= DISTINCT_EVIDENCE.minClaimWords &&
+    /^p\d{1,3}$/.test(cl.paragraphId ?? "")
+  );
+}
+
+/**
+ * Why claim `a` duplicates claim `b`, or null when they are distinct.
+ * - same-evidence: their quotes are the same passage (one covers at least 80%
+ *   of the other). Different sentences of one paragraph stay distinct.
+ * - same-fact: the claims say the same thing in nearly the same words and
+ *   with the same numbers, even if quoted from two places in the article.
+ */
+function duplicateReason(a, b) {
+  const shorter = Math.min(tokenize(a.quote).length, tokenize(b.quote).length);
+  if (shorter === 0) return "same-evidence";
+  if (
+    sharedRuns(a.quote, b.quote, 1).longest / shorter >=
+    DISTINCT_EVIDENCE.sameEvidenceOverlap
+  )
+    return "same-evidence";
+  if (normalizeForMatch(a.text) === normalizeForMatch(b.text))
+    return "same-fact";
+  const sameNumbers =
+    extractNumbers(a.text).join(",") === extractNumbers(b.text).join(",");
+  if (
+    sameNumbers &&
+    topicSimilarity(a.text, b.text) >= DISTINCT_EVIDENCE.sameFactSimilarity
+  )
+    return "same-fact";
+  return null;
+}
+
+/**
+ * Claims that count toward the "at least N supported claims" rule: usable,
+ * accepted by `accept` (e.g. verdict entailed), and not a duplicate of a claim
+ * already counted. c1 is considered first, so a later duplicate is discounted
+ * rather than the main claim. Returns { counted, duplicates }.
+ */
+export function distinctClaims(claims, accept = () => true) {
+  // Malformed entries (null, non-objects) are ignored, never counted.
+  const ordered = (Array.isArray(claims) ? claims : [])
+    .filter((cl) => cl !== null && typeof cl === "object")
+    .sort((a, b) =>
+      a.id === "c1"
+        ? -1
+        : b.id === "c1"
+          ? 1
+          : String(a.id).localeCompare(String(b.id)),
+    );
+  const counted = [];
+  const duplicates = [];
+  for (const cl of ordered) {
+    if (!usableClaim(cl) || !accept(cl)) continue;
+    const match = counted
+      .map((kept) => ({ kept, reason: duplicateReason(cl, kept) }))
+      .find((m) => m.reason);
+    if (match) {
+      duplicates.push({ id: cl.id, of: match.kept.id, reason: match.reason });
+      continue;
+    }
+    counted.push(cl);
+  }
+  return { counted, duplicates };
+}
+
 export const EXIT = Object.freeze({
   edition: 0,
   error: 1,
@@ -79,11 +219,10 @@ const REPAIRABLE = new Set([
 ]);
 
 const API_ASSUMPTIONS = [
-  "web_search combined with strict json_schema output in one request (fallback: plain-text discovery plus a no-tools conversion call)",
-  "max_tool_calls accepted at the configured value with no higher minimum, and respected as an upper bound on web_search_call items",
-  "search content tokens are included in usage.input_tokens; reasoning tokens are included in usage.output_tokens",
-  "web_search_call.action.sources is returned when requested via include",
-  "configured model IDs are available to the account and accept the configured reasoning effort",
+  "verified by the 2026-10-19 probe: web_search with strict json_schema output, max_tool_calls 1 accepted and respected, action.sources returned, search content in input_tokens, reasoning tokens in output_tokens, both models available",
+  "unverified: whether web_search_call items beyond max_tool_calls are page-open/find actions and whether those are billed (run-26e47111 returned 6 items for a limit of 5); they are counted at the search price as a conservative allowance",
+  "unverified: the action field that carries a page-open/find URL (action.url is accepted when present)",
+  "unverified: medium reasoning effort on gpt-6.1-sol for writing",
 ];
 
 const shortText = (value, max) => cleanText(value ?? "").slice(0, max);
@@ -189,6 +328,7 @@ export async function runResearch({
       runUnknownChargesUsd: meter.unknownChargesUsd,
       runTotalCountedUsd: meter.spentUsd,
       retriesRemaining: meter.retriesLeft,
+      estimateOverruns: meter.overruns,
       calls: meter.calls,
       byStage: Object.values(
         meter.calls.reduce((acc, c) => {
@@ -196,6 +336,7 @@ export async function runResearch({
             stage: c.stage,
             calls: 0,
             searches: 0,
+            otherActions: 0,
             inputTokens: 0,
             outputTokens: 0,
             reasoningTokens: 0,
@@ -204,6 +345,7 @@ export async function runResearch({
           });
           s.calls++;
           s.searches += c.searches ?? 0;
+          s.otherActions += c.otherActions ?? 0;
           s.inputTokens += c.inputTokens ?? 0;
           s.outputTokens += c.outputTokens ?? 0;
           s.reasoningTokens += c.reasoningTokens ?? 0;
@@ -267,7 +409,20 @@ export async function runResearch({
   try {
     // --- 1. Discovery ---------------------------------------------------------------
     const discovered = [];
-    const sourceSet = new Set();
+    // Provenance evidence: URLs the web search tool itself returned (search
+    // sources, citations, page-open/find action URLs), keyed by provenanceKey.
+    const sourceIndex = new Map();
+    const addSource = (raw, origin) => {
+      if (typeof raw !== "string") return;
+      try {
+        const key = provenanceKey(raw);
+        if (!sourceIndex.has(key))
+          sourceIndex.set(key, { url: raw.slice(0, 2048), origin });
+      } catch {
+        // unparsable or unsupported source URLs are not evidence
+      }
+    };
+    report.discovery.calls = [];
     const blockedDomains = policy.excluded.map((e) => e.domain).slice(0, 100);
     const perCall = config.limits.candidatesPerDiscoveryCall;
     let structured = stage("discovery").structuredOutputWithSearch !== false;
@@ -317,6 +472,8 @@ export async function runResearch({
             text: error.details.text ?? "",
             sources: error.details.sources ?? [],
             citations: error.details.citations ?? [],
+            actions: error.details.actions ?? [],
+            actionUrls: error.details.actionUrls ?? [],
           };
         } else {
           structured = false;
@@ -329,13 +486,25 @@ export async function runResearch({
           }
         }
       }
-      const sources = [...new Set([...result.sources, ...result.citations])];
-      sources.forEach((s) => {
-        try {
-          sourceSet.add(normalizeUrl(s));
-        } catch {
-          // ignore unparsable source URLs
-        }
+      const actionUrls = result.actionUrls ?? [];
+      result.sources.forEach((u) => addSource(u, "search-source"));
+      result.citations.forEach((u) => addSource(u, "citation"));
+      actionUrls.forEach((u) => addSource(u, "action-url"));
+      const sources = [
+        ...new Set([...result.sources, ...result.citations, ...actionUrls]),
+      ];
+      // F1 diagnostics: what the tool did and returned (URLs and queries only).
+      const actions = result.actions ?? [];
+      report.discovery.calls.push({
+        group: categories.join("+"),
+        structuredOutput: Boolean(result.json),
+        toolItems: actions.length,
+        billableSearches: actions.filter((a) => a.billable).length,
+        otherActions: actions.filter((a) => !a.billable).length,
+        actions,
+        sources: [...new Set(result.sources)].slice(0, 150),
+        citations: [...new Set(result.citations)].slice(0, 50),
+        actionUrls: [...new Set(actionUrls)].slice(0, 50),
       });
       let list = result.json?.candidates;
       if (!list) {
@@ -356,7 +525,7 @@ export async function runResearch({
         discovered.push({ ...c, group: categories.join("+") });
     }
     report.discovery.mode = structured ? "structured" : "plain-text+conversion";
-    report.discovery.sourcesSeen = sourceSet.size;
+    report.discovery.sourcesSeen = sourceIndex.size;
     if (discoveryFailures === config.discoveryGroups.length)
       return finish("error", "All discovery calls failed");
 
@@ -382,25 +551,37 @@ export async function runResearch({
       // Full URL/host/port policy is enforced by the secure fetcher; here the
       // URL only has to be a well-formed https URL without credentials.
       let normalized;
+      let key;
       try {
         if (!isSafeHttpsUrl(entry.url)) throw new Error("not a safe https URL");
         normalized = normalizeUrl(entry.url);
+        key = provenanceKey(entry.url);
       } catch (error) {
         drop(`INVALID_URL: ${error.message}`);
         continue;
       }
-      // Anti-fabrication: the URL must be one the search tool actually returned.
-      if (!sourceSet.has(normalized)) {
+      // Anti-fabrication: the URL must be one the search tool actually
+      // returned (same host, path and non-tracking query). A URL written by
+      // the model is never accepted on its own.
+      const match = sourceIndex.get(key);
+      if (!match) {
+        entry.provenance = provenanceMiss(key, sourceIndex);
         drop(
           "FABRICATED_URL: not among the URLs returned by the web search tool",
         );
         continue;
       }
-      if (seenUrls.has(normalized)) {
+      entry.provenance = {
+        matched: true,
+        origin: match.origin,
+        sourceUrl: match.url,
+        exact: normalizeUrl(match.url) === normalized,
+      };
+      if (seenUrls.has(key)) {
         drop("DUPLICATE_URL");
         continue;
       }
-      seenUrls.add(normalized);
+      seenUrls.add(key);
       const verdict = evaluateSource(entry.url, policy);
       entry.sourceStatus = verdict.status;
       entry.sourceTier = verdict.tier ?? null;
@@ -424,6 +605,19 @@ export async function runResearch({
         drop(`DATE_WINDOW: discovery reported ${c.publishedDate}`);
         continue;
       }
+    }
+    // F6: at most maxCandidatesPerSite candidates per site go on to be
+    // fetched (selection later keeps one story per site anyway).
+    const perSite = new Map();
+    for (const c of candidates.filter((x) => x.status === "candidate")) {
+      const site = siteOf(new URL(c.url).hostname);
+      const count = (perSite.get(site) ?? 0) + 1;
+      perSite.set(site, count);
+      if (count > config.limits.maxCandidatesPerSite)
+        Object.assign(c, {
+          status: "dropped",
+          reason: `SITE_CAP: more than ${config.limits.maxCandidatesPerSite} candidates from ${site}`,
+        });
     }
     const toFetch = candidates
       .filter((c) => c.status === "candidate")
@@ -560,16 +754,20 @@ export async function runResearch({
         Object.assign(c, { status: "dropped", reason: flags.join(",") });
         continue;
       }
-      const core = claims.find((cl) => cl.id === "c1");
+      // A1: only distinct, well-formed claims with verbatim quotes count.
+      const quoted = distinctClaims(claims);
+      c.verification.duplicates = quoted.duplicates;
+      const coreQuoted = quoted.counted.some((cl) => cl.id === "c1");
       if (
-        !core?.quoteFound ||
-        claims.filter((cl) => cl.quoteFound).length <
-          config.limits.minVerifiedClaims
+        !coreQuoted ||
+        quoted.counted.length < config.limits.minVerifiedClaims
       ) {
         Object.assign(c, {
           status: "dropped",
           reason:
-            "QUOTES_NOT_FOUND: core claim or too few claims have verbatim quotes in the article",
+            coreQuoted && quoted.duplicates.length
+              ? "INSUFFICIENT_DISTINCT_EVIDENCE: too few distinct claims with verbatim quotes"
+              : "QUOTES_NOT_FOUND: core claim or too few claims have verbatim quotes in the article",
         });
         c.verification.status = "failed";
       }
@@ -607,27 +805,158 @@ export async function runResearch({
       const verdicts = new Map(
         result.json.results.map((r) => [`${r.key}/${r.claimId}`, r.verdict]),
       );
+      // Verified = the main claim is entailed and at least minVerifiedClaims
+      // DISTINCT claims are entailed (A1: duplicates count once).
+      const applyVerification = (c) => {
+        const supported = distinctClaims(
+          c.verification.claims,
+          (cl) => cl.verdict === "entailed",
+        );
+        const coreOk = supported.counted.some((cl) => cl.id === "c1");
+        c.verification.distinctSupported = supported.counted.length;
+        c.verification.duplicates = supported.duplicates;
+        c.verification.status =
+          coreOk && supported.counted.length >= config.limits.minVerifiedClaims
+            ? "verified"
+            : "failed";
+        if (c.verification.status === "verified")
+          Object.assign(c, { status: "candidate", reason: null });
+        else
+          Object.assign(c, {
+            status: "dropped",
+            reason:
+              coreOk && supported.duplicates.length
+                ? "INSUFFICIENT_DISTINCT_EVIDENCE: too few distinct claims entailed by the article"
+                : "UNSUPPORTED_CLAIMS: core claim or too few claims entailed by the article",
+          });
+      };
       for (const c of toVerify) {
         for (const cl of c.verification.claims)
           cl.verdict = cl.quoteFound
             ? (verdicts.get(`${c.key}/${cl.id}`) ?? "missing")
             : "not_checked";
-        const entailed = c.verification.claims.filter(
-          (cl) => cl.verdict === "entailed",
-        );
-        const coreOk =
-          c.verification.claims.find((cl) => cl.id === "c1")?.verdict ===
-          "entailed";
-        c.verification.status =
-          coreOk && entailed.length >= config.limits.minVerifiedClaims
-            ? "verified"
-            : "failed";
-        if (c.verification.status !== "verified")
-          Object.assign(c, {
-            status: "dropped",
-            reason:
-              "UNSUPPORTED_CLAIMS: core claim or too few claims entailed by the article",
-          });
+        applyVerification(c);
+      }
+
+      // F4: one bounded re-extraction of a core claim (c1) that its own quote
+      // did not fully support, only for stories that could otherwise pass.
+      // The replacement must be found verbatim in the article and must be
+      // judged "entailed" again; thresholds are unchanged.
+      const reasons = new Map(
+        result.json.results.map((r) => [`${r.key}/${r.claimId}`, r.reason]),
+      );
+      const retryable = toVerify
+        .filter((c) => {
+          const core = c.verification.claims.find((cl) => cl.id === "c1");
+          const othersEntailed = distinctClaims(
+            c.verification.claims.filter((cl) => cl.id !== "c1"),
+            (cl) => cl.verdict === "entailed",
+          ).counted.length;
+          return (
+            c.verification.status === "failed" &&
+            core?.quoteFound &&
+            ["partial", "not_entailed"].includes(core.verdict) &&
+            othersEntailed >= config.limits.minVerifiedClaims - 1
+          );
+        })
+        .slice(0, config.limits.maxCoreReextractions);
+      const replacements = [];
+      for (const c of retryable) {
+        const core = c.verification.claims.find((cl) => cl.id === "c1");
+        const { evidence } = fetchedByKey.get(c.key);
+        c.verification.coreReextraction = {
+          previous: {
+            text: core.text,
+            quote: core.quote,
+            paragraphId: core.paragraphId,
+            verdict: core.verdict,
+            reason: shortText(reasons.get(`${c.key}/c1`) ?? "", 300),
+          },
+          outcome: null,
+        };
+        let reextracted;
+        try {
+          reextracted = await call(
+            "coreReextraction",
+            coreReextractionPrompt({
+              key: c.key,
+              headline: c.sourceHeadline,
+              publisher: c.publisher,
+              paragraphs: evidence.paragraphs,
+              rejected: core,
+              nonce,
+            }),
+            { schemaName: "coreClaim" },
+          );
+        } catch (error) {
+          if (["QUOTA", "BUDGET"].includes(error.kind)) throw error;
+          c.verification.coreReextraction.outcome = `FAILED: ${error.kind}`;
+          continue;
+        }
+        const { found, claim } = reextracted.json;
+        const paragraph = evidence.paragraphs.find(
+          (p) => p.id === claim.paragraphId,
+        )?.text;
+        if (!found || !paragraph || !containsQuote(paragraph, claim.quote)) {
+          c.verification.coreReextraction.outcome = found
+            ? "QUOTE_NOT_FOUND"
+            : "NO_SINGLE_QUOTE";
+          continue;
+        }
+        replacements.push({
+          c,
+          claim: {
+            id: "c1",
+            text: shortText(claim.text, 400),
+            paragraphId: claim.paragraphId,
+            quote: shortText(claim.quote, 600),
+            quoteFound: true,
+            verdict: null,
+            reextracted: true,
+          },
+        });
+      }
+      if (replacements.length) {
+        let reverified = null;
+        try {
+          reverified = await call(
+            "reverification",
+            verificationPrompt({
+              items: replacements.map(({ c, claim }) => ({
+                key: c.key,
+                claimId: "c1",
+                claim: claim.text,
+                quote: claim.quote,
+              })),
+              nonce,
+            }),
+            { schemaName: "reverification" },
+          );
+        } catch (error) {
+          if (["QUOTA", "BUDGET"].includes(error.kind)) throw error;
+          replacements.forEach(
+            ({ c }) =>
+              (c.verification.coreReextraction.outcome = `REVERIFICATION_FAILED: ${error.kind}`),
+          );
+        }
+        if (reverified) {
+          const newVerdicts = new Map(
+            reverified.json.results
+              .filter((r) => r.claimId === "c1")
+              .map((r) => [r.key, r.verdict]),
+          );
+          for (const { c, claim } of replacements) {
+            claim.verdict = newVerdicts.get(c.key) ?? "missing";
+            c.verification.coreReextraction.outcome = claim.verdict;
+            if (claim.verdict !== "entailed") continue;
+            c.verification.claims = c.verification.claims.map((cl) =>
+              cl.id === "c1" ? claim : cl,
+            );
+            // Same rule as first-pass verification: a replacement that merely
+            // repeats another claim's evidence or fact cannot make it pass.
+            applyVerification(c);
+          }
+        }
       }
     }
 
@@ -653,10 +982,7 @@ export async function runResearch({
     }
     const score = (c) =>
       (4 - (c.sourceTier ?? 3)) * 2 +
-      Math.min(
-        c.verification.claims.filter((cl) => cl.verdict === "entailed").length,
-        5,
-      ) +
+      Math.min(c.verification.distinctSupported, 5) +
       (c.practicalRelevance ?? 1) +
       (c.corroboration.status === "corroborated" ? 2 : 0) +
       (Date.parse(c.publishedOn) - Date.parse(window.firstDate)) /

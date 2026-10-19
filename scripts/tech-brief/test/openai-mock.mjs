@@ -29,6 +29,20 @@ export const USAGE = {
     reasoning: 500,
     searches: 0,
   },
+  coreClaim: {
+    input: 5_000,
+    cached: 0,
+    output: 600,
+    reasoning: 300,
+    searches: 0,
+  },
+  reverification: {
+    input: 1_500,
+    cached: 0,
+    output: 400,
+    reasoning: 0,
+    searches: 0,
+  },
   verification: {
     input: 9_000,
     cached: 0,
@@ -68,23 +82,34 @@ export function responseOf({
   citations = [],
   usage,
   searches = 0,
+  // Optional explicit web_search_call actions, e.g. [{ type: "search" },
+  // { type: "open_page", url }]. Overrides `searches`. Sources are attached
+  // to the first search action.
+  actions,
   status = "completed",
   incompleteReason,
   refusal,
 }) {
   const output = [];
-  for (let i = 0; i < searches; i++) {
+  const list =
+    actions ?? Array.from({ length: searches }, () => ({ type: "search" }));
+  let sourcesAttached = false;
+  list.forEach((a, i) => {
+    const action = { ...a };
+    if (a.type === "search") {
+      action.query = a.query ?? `query ${i + 1}`;
+      action.sources = sourcesAttached
+        ? []
+        : sources.map((url) => ({ type: "url", url }));
+      sourcesAttached = true;
+    }
     output.push({
       id: id("ws"),
       type: "web_search_call",
       status: "completed",
-      action: {
-        type: "search",
-        query: `query ${i + 1}`,
-        sources: i === 0 ? sources.map((url) => ({ type: "url", url })) : [],
-      },
+      action,
     });
-  }
+  });
   output.push({ id: id("rs"), type: "reasoning", summary: [] });
   const body = text ?? (json === undefined ? "" : JSON.stringify(json));
   output.push({

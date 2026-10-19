@@ -94,9 +94,19 @@ export const SCHEMAS = {
       5,
     ),
   }),
+  // One replacement core claim, restated strictly from a single quote.
+  coreClaim: object({
+    found: { type: "boolean" },
+    claim: object({
+      text: string,
+      paragraphId: { type: "string", pattern: "^p\\d{1,3}$" },
+      quote: string,
+    }),
+  }),
 };
 SCHEMAS.discoveryConversion = SCHEMAS.discovery;
 SCHEMAS.repair = SCHEMAS.writing;
+SCHEMAS.reverification = SCHEMAS.verification;
 
 const ALLOWED_KEYWORDS = new Set([
   "type",

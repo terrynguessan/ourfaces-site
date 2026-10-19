@@ -36,6 +36,11 @@ function untrustedBlock(lines, nonce) {
 
 const taskData = (data) => `TASK DATA:\n${JSON.stringify(data)}`;
 
+// The claim must say no more than its quote: in run-26e47111, 4 of 13 claims
+// were rejected as "partial" because they added facts or interpretation.
+const CLAIM_FIDELITY_RULE =
+  "Each claim must restate only what its own quote says: no facts from other paragraphs, no added causes, comparisons, interpretation, qualifiers or certainty. If a fact needs two quotes, make two separate claims.";
+
 export function discoveryPrompt({ window, categories, maxCandidates }) {
   return {
     instructions: [
@@ -45,7 +50,8 @@ export function discoveryPrompt({ window, categories, maxCandidates }) {
       CATEGORY_GUIDE,
       "Prefer primary sources (official engineering blogs, release notes, standards bodies, government agencies) and established technical publications. Avoid press releases, sponsored content, opinion pieces, aggregators, social media, paywalled articles and rumours.",
       "Prefer developments with practical applications. Report only what the source says; do not speculate.",
-      `Return at most ${maxCandidates} candidates. Each url must be the exact article URL you found through search, not a homepage or a search page. Use "unknown" when you cannot see the publication date.`,
+      "Diversity: return at most one candidate per publisher or website, and aim for a mix of source types (vendor or project announcements, standards bodies or government agencies, and established technical press). Do not fill the list with several posts from the same blog.",
+      `Return at most ${maxCandidates} candidates. Each url must be the exact article URL you found through search, copied character for character from your search results, not a homepage, a listing page or a search page, and not a URL you reconstructed or guessed. Use "unknown" when you cannot see the publication date.`,
       UNTRUSTED_RULE,
     ].join("\n"),
     input: taskData({
@@ -88,6 +94,8 @@ export function extractionPrompt({
       "You extract verifiable factual claims from one news article for a fact-checking pipeline.",
       `Return 2 to ${maxClaims} atomic claims. Claim c1 must state what happened (the main development). Each claim must be supported by a quote copied exactly, character for character, from a single paragraph, and must give that paragraph's id (p1, p2, ...).`,
       "Quotes must be continuous text from the paragraph, at least 8 words when possible, and must not be paraphrased, shortened with ellipses or combined across paragraphs.",
+      CLAIM_FIDELITY_RULE,
+      "Choose c1 from a quote that, on its own, states the main development. Do not build c1 by combining facts from different paragraphs.",
       "Do not include claims about the future, opinions, marketing language or anything the article does not state.",
       "Also report: whether the article is relevant technology news, whether its main subject matches the headline, whether it is promotional or sponsored, whether it is an opinion piece, its best category, and its practical relevance for developers or organizations from 1 (low) to 5 (high).",
       CATEGORY_GUIDE,
@@ -95,6 +103,38 @@ export function extractionPrompt({
     ].join("\n"),
     input: `${taskData({ key, headline, publisher, maxClaims })}\n${untrustedBlock(
       paragraphs.map((p) => `[${p.id}] ${p.text}`),
+      nonce,
+    )}`,
+  };
+}
+
+/**
+ * One bounded retry for a core claim that its own quote did not fully
+ * support. The fact checker's verdict is passed back; the new claim is
+ * checked verbatim and verified again by the same rules.
+ */
+export function coreReextractionPrompt({
+  key,
+  headline,
+  publisher,
+  paragraphs,
+  rejected,
+  nonce,
+}) {
+  return {
+    instructions: [
+      "A fact checker found that the main claim extracted from this article was not fully supported by its own quote (verdict in TASK DATA). Extract one replacement main claim (c1) that states what happened.",
+      "Copy the quote exactly, character for character, from a single paragraph and give that paragraph's id. Choose a quote that, on its own, states the main development.",
+      CLAIM_FIDELITY_RULE,
+      "If no single quote states the main development, set found to false and return empty strings.",
+      UNTRUSTED_RULE,
+    ].join("\n"),
+    input: `${taskData({ key, headline, publisher, rejectedVerdict: rejected.verdict })}\n${untrustedBlock(
+      [
+        `[rejected claim] ${rejected.text}`,
+        `[rejected quote] ${rejected.quote}`,
+        ...paragraphs.map((p) => `[${p.id}] ${p.text}`),
+      ],
       nonce,
     )}`,
   };

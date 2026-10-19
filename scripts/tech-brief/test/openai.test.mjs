@@ -142,8 +142,9 @@ test("worst-case estimate covers prompt, maximum output and maximum searches", (
     instructions: "x".repeat(3000),
     input: "y".repeat(300),
   };
-  // (1100 prompt + 5*10000 search tokens) * 0.10 + 12000 * 0.50, per 1M, + 5 * $0.01
-  assert.equal(worstCaseUsd(discovery, config), 0.06111);
+  // Items: max_tool_calls 5 + 2 allowance = 7.
+  // (1100 prompt + 7*30000 search tokens) * 0.10 + 12000 * 0.50, per 1M, + 7 * $0.01
+  assert.equal(worstCaseUsd(discovery, config), 0.09711);
 });
 
 test("classifyHttpError separates quota, rate limit, auth, server and request errors", () => {
@@ -422,4 +423,135 @@ test("fetchTransport sends the key only in the Authorization header and never le
     () => fetchTransport({ apiKey: key, baseUrl: "http://api.openai.com/v1" }),
     (e) => e.kind === "BAD_REQUEST",
   );
+});
+
+// --- F2: web search actions, conservative estimates and overrun detection ---
+
+const discoveryRequest = {
+  model: "gpt-6-luna",
+  reasoningEffort: "medium",
+  maxOutputTokens: 12000,
+  instructions: "x".repeat(3000),
+  input: "y".repeat(300),
+  tools: [{ type: "web_search" }],
+  toolChoice: "required",
+  maxToolCalls: 5,
+  include: ["web_search_call.action.sources"],
+};
+
+test("parseResponse separates billable search actions from page-open and find actions", () => {
+  const parsed = parseResponse(fixtureJson("openai/discovery-response.json"));
+  assert.equal(parsed.searchCount, 2);
+  assert.equal(parsed.billableSearchCount, 1);
+  assert.equal(parsed.otherActionCount, 1);
+  assert.deepEqual(
+    parsed.actions.map((a) => [a.type, a.billable, a.sources]),
+    [
+      ["search", true, 2],
+      ["open_page", false, 0],
+    ],
+  );
+  assert.deepEqual(parsed.actionUrls, [
+    "https://news.alpha-devtools.com/releases/v5-0",
+  ]);
+  assert.deepEqual(parsed.actions[0].queries, [
+    "type checker incremental mode release October 2026",
+  ]);
+
+  const mixed = responseOf({
+    actions: [
+      { type: "search", queries: ["a", "b"] },
+      { type: "find_in_page", url: "https://example.com/x" },
+      { type: "find" },
+      {},
+    ],
+  }).json;
+  const p = parseResponse(mixed);
+  assert.equal(
+    p.billableSearchCount,
+    2,
+    "search and a missing type are billable",
+  );
+  assert.equal(p.otherActionCount, 2);
+  assert.deepEqual(p.actions[3].type, "unknown");
+  assert.deepEqual(p.actionUrls, ["https://example.com/x"]);
+});
+
+test("a web search request without max_tool_calls is refused as unbounded", () => {
+  for (const maxToolCalls of [undefined, 0, -1, 2.5]) {
+    assert.throws(
+      () => worstCaseUsd({ ...discoveryRequest, maxToolCalls }, config),
+      (e) => e.kind === "BUDGET",
+      String(maxToolCalls),
+    );
+  }
+});
+
+test("run-26e47111 pattern: 5 searches + 1 page open is priced and counted conservatively, without overrun", async () => {
+  const response = responseOf({
+    json: { candidates: [] },
+    actions: [
+      ...Array.from({ length: 5 }, () => ({ type: "search" })),
+      { type: "open_page", url: "https://example.com/a" },
+    ],
+    usage: { input: 47_669, cached: 0, output: 2_091, reasoning: 1_613 },
+  });
+  const { client, meter } = clientWith([response]);
+  const result = await client.respond("discovery", {
+    ...discoveryRequest,
+    schemaName: "discovery",
+  });
+  // Billed estimate: 47669*0.10 + 2091*0.50 per 1M + 5 searches.
+  assert.equal(result.costUsd, 0.055812);
+  const call = meter.calls[0];
+  assert.deepEqual(
+    [call.searches, call.otherActions, call.toolItems, call.searchLimit],
+    [5, 1, 6, 5],
+  );
+  assert.equal(
+    call.unknownChargeUsd,
+    0.01,
+    "the page open counted at the search price",
+  );
+  assert.equal(meter.spentUsd, 0.065812, "same counted total as the dry run");
+  assert.ok(
+    meter.spentUsd <= call.worstCaseUsd,
+    "now within the pre-call estimate",
+  );
+  assert.deepEqual(meter.overruns, []);
+});
+
+test("more web search items than budgeted stop the run as an estimate overrun", async () => {
+  const response = responseOf({
+    json: { candidates: [] },
+    actions: Array.from({ length: 8 }, () => ({ type: "search" })),
+    usage: { input: 50_000, cached: 0, output: 2_000, reasoning: 0 },
+  });
+  const { client, meter } = clientWith([response, response]);
+  await assert.rejects(
+    client.respond("discovery", {
+      ...discoveryRequest,
+      schemaName: "discovery",
+    }),
+    (e) =>
+      e.kind === "BUDGET" &&
+      /Estimate overrun/.test(e.message) &&
+      e.details.overrun.toolItemBudget === 7,
+  );
+  assert.equal(meter.overruns.length, 1);
+  assert.ok(meter.spentUsd > 0, "the overrunning call is still counted");
+});
+
+test("token usage above the estimate is also detected as an overrun", async () => {
+  const response = responseOf({
+    model: "gpt-6.1-sol",
+    json: validReview,
+    usage: { input: 3_000_000, cached: 0, output: 100, reasoning: 0 },
+  });
+  const { client, meter } = clientWith([response]);
+  await assert.rejects(
+    client.respond("review", writingRequest),
+    (e) => e.kind === "BUDGET",
+  );
+  assert.equal(meter.overruns[0].stage, "review");
 });

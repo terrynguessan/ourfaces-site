@@ -33,14 +33,23 @@ const QUOTA_CODES = new Set([
 
 const round6 = (n) => Math.round(n * 1e6) / 1e6;
 
-/** Tracks estimated spend for one run. */
+/**
+ * Tracks estimated spend for one run.
+ * - billed estimate: tokens plus billable search actions, from usage data
+ * - unknown charges: amounts that may have been billed but cannot be known
+ *   (timed-out calls, missing usage, non-search web actions); counted at
+ *   their conservative value so the ceiling check stays on the safe side
+ * - overruns: calls whose counted cost exceeded their pre-call worst case
+ */
 export function createMeter({ prices, perRunUsd, retriesPerRun }) {
   const calls = [];
+  const overruns = [];
   let spent = 0;
   let unknown = 0;
   let retriesLeft = retriesPerRun;
   return {
     calls,
+    overruns,
     get spentUsd() {
       return round6(spent + unknown);
     },
@@ -93,7 +102,23 @@ export function createMeter({ prices, perRunUsd, retriesPerRun }) {
   };
 }
 
-/** Worst-case cost of a request before it is sent. */
+/**
+ * Maximum number of web_search_call items a request is budgeted for: its
+ * max_tool_calls plus an allowance for page-open / find-in-page actions. The
+ * dry run (run-26e47111) returned limit + 1 items, so the limit alone is not
+ * a safe bound on items.
+ */
+export function toolItemBudget(request, { estimates }) {
+  return request.maxToolCalls + estimates.extraToolActionsAllowance;
+}
+
+/**
+ * Worst-case cost of a request before it is sent. Output is hard-capped by
+ * max_output_tokens. Web search is bounded by the item budget above, each
+ * item priced as a billable search plus a conservative amount of search
+ * content. A web search request without max_tool_calls cannot be bounded and
+ * is refused.
+ */
 export function worstCaseUsd(request, { prices, estimates }) {
   const p = prices.models[request.model];
   if (!p)
@@ -101,20 +126,28 @@ export function worstCaseUsd(request, { prices, estimates }) {
       "BAD_REQUEST",
       `No price configured for model ${request.model}`,
     );
-  const searches = request.tools?.some((t) => t.type === "web_search")
-    ? (request.maxToolCalls ?? 0)
-    : 0;
+  const searching = request.tools?.some((t) => t.type === "web_search");
+  if (
+    searching &&
+    !(Number.isInteger(request.maxToolCalls) && request.maxToolCalls >= 1)
+  ) {
+    throw new OpenAIError(
+      "BUDGET",
+      "A web_search request without a positive max_tool_calls cannot be cost-bounded",
+    );
+  }
+  const items = searching ? toolItemBudget(request, { estimates }) : 0;
   const promptTokens = Math.ceil(
     ((request.instructions ?? "").length + (request.input ?? "").length) /
       estimates.charsPerToken,
   );
   const inputTokens =
-    promptTokens + searches * estimates.searchContentTokensPerSearch;
+    promptTokens + items * estimates.searchContentTokensPerItemWorstCase;
   return round6(
     (inputTokens * p.inputPerMTokUsd +
       request.maxOutputTokens * p.outputPerMTokUsd) /
       1e6 +
-      searches * prices.webSearchPerCallUsd,
+      items * prices.webSearchPerCallUsd,
   );
 }
 
@@ -185,7 +218,17 @@ export function classifyHttpError(status, json) {
   return new OpenAIError("BAD_REQUEST", message, { status, code });
 }
 
-/** Extracts text, refusals, web search counts, sources and citations from a response. */
+// web_search_call action types that are not searches. The web search guide
+// says "Search actions incur a tool call cost" and lists open_page and
+// find_in_page as separate actions; "find" is accepted as an alias. Any other
+// or missing type is treated as a billable search (conservative).
+const NON_SEARCH_ACTIONS = new Set(["open_page", "find_in_page", "find"]);
+
+/**
+ * Extracts text, refusals, web search actions, sources and citations from a
+ * response. Only URLs and short queries are kept from actions, never page
+ * content.
+ */
 export function parseResponse(json) {
   const output = Array.isArray(json?.output) ? json.output : [];
   const searches = output.filter((item) => item?.type === "web_search_call");
@@ -193,6 +236,25 @@ export function parseResponse(json) {
   for (const call of searches)
     for (const s of call.action?.sources ?? [])
       if (typeof s?.url === "string") sources.push(s.url);
+  const actions = searches.map((call) => {
+    const action = call.action ?? {};
+    const type = typeof action.type === "string" ? action.type : "unknown";
+    const queries = [
+      ...(typeof action.query === "string" ? [action.query] : []),
+      ...(Array.isArray(action.queries)
+        ? action.queries.filter((q) => typeof q === "string")
+        : []),
+    ].map((q) => q.slice(0, 200));
+    return {
+      type,
+      billable: !NON_SEARCH_ACTIONS.has(type),
+      status: typeof call.status === "string" ? call.status : null,
+      queries: queries.slice(0, 5),
+      url: typeof action.url === "string" ? action.url.slice(0, 2048) : null,
+      sources: Array.isArray(action.sources) ? action.sources.length : 0,
+    };
+  });
+  const actionUrls = actions.map((a) => a.url).filter(Boolean);
   const texts = [];
   const citations = [];
   let refusal = null;
@@ -215,6 +277,10 @@ export function parseResponse(json) {
     text: texts.join(""),
     refusal,
     searchCount: searches.length,
+    billableSearchCount: actions.filter((a) => a.billable).length,
+    otherActionCount: actions.filter((a) => !a.billable).length,
+    actions,
+    actionUrls,
     sources,
     citations,
     usage: json?.usage ?? null,
@@ -335,10 +401,16 @@ export function createClient({ transport, config, meter, wait = sleep }) {
       }
 
       const parsed = parseResponse(result.json);
+      // Billed estimate: tokens plus billable search actions only.
       const costUsd = meter.price(
         request.model,
         parsed.usage,
-        parsed.searchCount,
+        parsed.billableSearchCount,
+      );
+      // Non-search web actions are not documented as billed; count them at
+      // the search price anyway so the ceiling check stays conservative.
+      const actionAllowanceUsd = round6(
+        parsed.otherActionCount * config.prices.webSearchPerCallUsd,
       );
       const usage = parsed.usage ?? {};
       meter.record({
@@ -349,9 +421,12 @@ export function createClient({ transport, config, meter, wait = sleep }) {
         cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
         outputTokens: usage.output_tokens ?? 0,
         reasoningTokens: usage.output_tokens_details?.reasoning_tokens ?? 0,
-        searches: parsed.searchCount,
+        searches: parsed.billableSearchCount,
+        otherActions: parsed.otherActionCount,
+        toolItems: parsed.searchCount,
         searchLimit: request.maxToolCalls ?? null,
         costUsd,
+        unknownChargeUsd: actionAllowanceUsd,
         ...(parsed.usage ? {} : { usageMissing: true }),
       });
       if (!parsed.usage) {
@@ -364,6 +439,29 @@ export function createClient({ transport, config, meter, wait = sleep }) {
           costUsd: 0,
           unknownChargeUsd: worst,
         });
+      }
+      // Overrun detection: the counted cost of this call, or its number of
+      // web search items, exceeded what the pre-call estimate allowed. The
+      // estimate can no longer be trusted, so the run must stop.
+      const counted = round6(costUsd + actionAllowanceUsd);
+      const itemLimit = request.tools?.some((t) => t.type === "web_search")
+        ? toolItemBudget(request, config)
+        : 0;
+      if (counted > worst || parsed.searchCount > itemLimit) {
+        const overrun = {
+          stage,
+          model: request.model,
+          worstCaseUsd: worst,
+          countedUsd: counted,
+          toolItems: parsed.searchCount,
+          toolItemBudget: itemLimit,
+        };
+        meter.overruns.push(overrun);
+        throw new OpenAIError(
+          "BUDGET",
+          `Estimate overrun in ${stage}: counted $${counted} (${parsed.searchCount} web search items) against a worst case of $${worst} (${itemLimit} items)`,
+          { overrun },
+        );
       }
       if (parsed.status === "incomplete")
         throw new OpenAIError(
@@ -385,6 +483,8 @@ export function createClient({ transport, config, meter, wait = sleep }) {
           text: parsed.text,
           sources: parsed.sources,
           citations: parsed.citations,
+          actions: parsed.actions,
+          actionUrls: parsed.actionUrls,
         };
         try {
           json = JSON.parse(parsed.text);
@@ -411,7 +511,11 @@ export function createClient({ transport, config, meter, wait = sleep }) {
         text: parsed.text,
         sources: parsed.sources,
         citations: parsed.citations,
+        actions: parsed.actions,
+        actionUrls: parsed.actionUrls,
         searchCount: parsed.searchCount,
+        billableSearchCount: parsed.billableSearchCount,
+        otherActionCount: parsed.otherActionCount,
         costUsd,
       };
     }
