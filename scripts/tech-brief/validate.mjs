@@ -21,6 +21,7 @@ import {
   topicSimilarity,
   wordCount,
 } from "./text.mjs";
+import { checkAttribution } from "./editorial.mjs";
 import { findInjectionSignals } from "./html.mjs";
 
 export const CATEGORIES = [
@@ -1303,6 +1304,7 @@ export function validateEdition(
     errors.push(...bilingual.errors);
     warnings.push(...bilingual.warnings);
     errors.push(...checkEditorial(story, path));
+    errors.push(...checkAttribution(story, path));
     if (articles) {
       const result = verifyAgainstArticle(story, articles[story.id], { path });
       errors.push(...result.errors);

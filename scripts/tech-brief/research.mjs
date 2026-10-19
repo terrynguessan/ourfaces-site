@@ -2,7 +2,8 @@
 // edition plus a machine-readable research and cost report.
 //
 // Stages: preflight -> discovery (web search) -> policy/duplicate filters ->
-// secure fetch -> claim extraction -> claim verification against the original
+// secure fetch -> claim extraction and editorial classification (F5,
+// editorial.mjs) -> claim verification against the original
 // article -> independent corroboration -> ranking -> EN/FR writing ->
 // deterministic checks (+ one repair pass) -> faithfulness review -> final
 // validation with validate.mjs.
@@ -16,6 +17,11 @@ import { randomBytes } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve, relative, isAbsolute } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  EDITORIAL_POLICY,
+  checkAttribution,
+  classifyEditorial,
+} from "./editorial.mjs";
 import { createFetcher } from "./fetch.mjs";
 import { buildEvidence } from "./html.mjs";
 import {
@@ -216,6 +222,7 @@ const REPAIRABLE = new Set([
   "FR_LANGUAGE",
   "EN_LANGUAGE",
   "COPYRIGHT_OVERLAP",
+  "ATTRIBUTION_MISSING",
 ]);
 
 const API_ASSUMPTIONS = [
@@ -307,6 +314,7 @@ export async function runResearch({
       Object.entries(config.stages).map(([stage, s]) => [stage, s.model]),
     ),
     apiAssumptionsPendingLiveVerification: API_ASSUMPTIONS,
+    editorialPolicy: EDITORIAL_POLICY,
     discovery: { mode: null, sourcesSeen: 0, fallbackUsed: false },
     candidates,
     selected: [],
@@ -585,6 +593,7 @@ export async function runResearch({
       const verdict = evaluateSource(entry.url, policy);
       entry.sourceStatus = verdict.status;
       entry.sourceTier = verdict.tier ?? null;
+      entry.sourceKind = verdict.kind ?? null;
       if (verdict.status === "excluded" || verdict.status === "review") {
         drop(`SOURCE_${verdict.status.toUpperCase()}: ${verdict.reason}`);
         continue;
@@ -744,10 +753,18 @@ export async function runResearch({
         status: "pending",
         claims,
       };
+      // F5: promotional means advertising, marketing, hype or too little
+      // technical substance (fixed rules). A vendor self-report is not
+      // rejected for that alone; it must be attributed when written.
+      c.editorial = classifyEditorial(x.editorial, {
+        publisher: c.publisher,
+        sourceSite: siteOf(new URL(c.url).hostname),
+        sourceKind: c.sourceKind,
+      });
       const flags = [
         !x.relevant && "NOT_RELEVANT",
         !x.mainSubjectMatchesHeadline && "SUBJECT_MISMATCH",
-        x.isPromotional && "PROMOTIONAL",
+        c.editorial.promotionalCode,
         x.isOpinion && "OPINION",
       ].filter(Boolean);
       if (flags.length) {
@@ -1032,12 +1049,21 @@ export async function runResearch({
     }
 
     // --- 7. Writing ------------------------------------------------------------------------
+    const selfReportedBy = (c) =>
+      c.editorial.vendorSelfReport ? c.editorial.attributedTo : null;
+    const editorialEvidence = (c) => ({
+      contentType: c.editorial.contentType,
+      technicalSubstance: c.editorial.technicalSubstance,
+      vendorSelfReport: c.editorial.vendorSelfReport,
+      attributedTo: c.editorial.attributedTo,
+    });
     const writingInput = (c) => ({
       key: c.key,
       category: c.category,
       sourceHeadline: c.sourceHeadline,
       publisher: c.publisher,
       publishedOn: c.publishedOn,
+      selfReportedBy: selfReportedBy(c),
       claims: c.verification.claims
         .filter((cl) => cl.verdict === "entailed")
         .map((cl) => ({ id: cl.id, text: cl.text })),
@@ -1095,6 +1121,7 @@ export async function runResearch({
       sourceHeadline: c.sourceHeadline,
       sourceHeadlineLang: c.sourceHeadlineLang,
       ...texts.get(c.key),
+      evidence: { editorial: editorialEvidence(c) },
     });
     const deterministicIssues = (c) => {
       if (!texts.has(c.key))
@@ -1104,6 +1131,7 @@ export async function runResearch({
       return [
         ...checkBilingual(story).errors,
         ...checkEditorial(story),
+        ...checkAttribution(story),
         ...verifyAgainstArticle(story, fetched).errors,
       ];
     };
@@ -1159,6 +1187,7 @@ export async function runResearch({
         reviewPrompt({
           stories: remaining.map((c) => ({
             key: c.key,
+            selfReportedBy: selfReportedBy(c),
             claims: writingInput(c).claims,
             en: texts.get(c.key).en,
             fr: texts.get(c.key).fr,
@@ -1226,6 +1255,7 @@ export async function runResearch({
               usedInSummary: t.claimIds.includes(cl.id),
             })),
           corroboratedBy: c.corroboration.by,
+          editorial: editorialEvidence(c),
         },
       };
     });

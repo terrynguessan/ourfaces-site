@@ -6,6 +6,7 @@
 // every response is validated again locally, and length limits are enforced
 // later by validate.mjs.
 
+import { CONTENT_TYPES, TECHNICAL_SUBSTANCE } from "./editorial.mjs";
 import { CATEGORIES } from "./validate.mjs";
 
 const string = { type: "string" };
@@ -39,7 +40,16 @@ export const SCHEMAS = {
   extraction: object({
     relevant: { type: "boolean" },
     mainSubjectMatchesHeadline: { type: "boolean" },
-    isPromotional: { type: "boolean" },
+    // F5: facets only; the promotional decision is made by editorial.mjs.
+    editorial: object({
+      contentType: { type: "string", enum: CONTENT_TYPES },
+      sponsoredOrPaid: { type: "boolean" },
+      technicalSubstance: { type: "string", enum: TECHNICAL_SUBSTANCE },
+      unsupportedHype: { type: "boolean" },
+      vendorSelfReport: { type: "boolean" },
+      reportingOrganization: string,
+      promotionalEvidence: string,
+    }),
     isOpinion: { type: "boolean" },
     category,
     practicalRelevance: { type: "integer", minimum: 1, maximum: 5 },

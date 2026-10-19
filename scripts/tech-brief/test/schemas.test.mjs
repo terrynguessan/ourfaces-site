@@ -44,7 +44,15 @@ test("validateAgainstSchema enforces types, enums, patterns, ranges, required an
   const extraction = {
     relevant: true,
     mainSubjectMatchesHeadline: true,
-    isPromotional: false,
+    editorial: {
+      contentType: "original-research",
+      sponsoredOrPaid: false,
+      technicalSubstance: "substantial",
+      unsupportedHype: false,
+      vendorSelfReport: true,
+      reportingOrganization: "Example Labs",
+      promotionalEvidence: "",
+    },
     isOpinion: false,
     category: "applied-ai",
     practicalRelevance: 4,

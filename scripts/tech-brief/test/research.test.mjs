@@ -49,6 +49,9 @@ const DOMAINS = [
   "eta-hidden.com",
   "iota-blocked.com",
   "kappa-archive.com",
+  "anthropic.com",
+  "mu-partner.com",
+  "nuquantum.com",
 ];
 const tls = makeCertificate(DOMAINS);
 
@@ -81,8 +84,9 @@ function page({
   lang = "en",
   paragraphs,
   hidden = "",
+  meta = "",
 }) {
-  return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><title>${esc(headline)} | ${esc(siteName)}</title>
+  return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8">${meta}<title>${esc(headline)} | ${esc(siteName)}</title>
 <meta property="og:title" content="${esc(headline)}"><meta property="og:site_name" content="${esc(siteName)}">
 <meta property="article:published_time" content="${published}"><link rel="canonical" href="${url}"></head>
 <body><main><article><h1>${esc(headline)}</h1>${hidden}${paragraphs.map((p) => `<p>${esc(p)}</p>`).join("")}</article></main></body></html>`;
@@ -119,6 +123,52 @@ const FILLER = [
   "Several companies that sponsor the project have already adopted the release in their continuous integration pipelines, according to the announcement.",
 ];
 
+// F5 regression fixture: the article dropped as PROMOTIONAL in run-26e47111.
+// The four quoted sentences are as recorded in that run's report; the other
+// sentences are written for this test.
+const QUANTUM_HEADLINE =
+  "Designing more efficient quantum circuits with Claude";
+const QUANTUM_QUOTES = [
+  "Across eight computational primitives—the basic routines that larger quantum algorithms are built from—for chemistry, optimization, quantum simulation, number theory, and numerical computing, Claude discovered novel designs that used both fewer qubits and fewer gates than the best previously published algorithms (Figure 2).",
+  "With the full validation complete, Claude produced the first reversible implementation of divsteps with no stored branch history.",
+  "Compared with the smallest previous design, one circuit in the family uses 12% more qubits but 17x fewer gates.",
+  "Together, these optimizations reduced the number of gates in the decoder by a factor of 12 relative to Google’s previous construction.",
+];
+const QUANTUM = [
+  "Quantum algorithms are assembled from small circuits, and every extra qubit or gate makes them harder to run on the limited hardware that exists today.",
+  "In this project the model proposed candidate circuit designs, and each candidate was checked by independent simulation before it was accepted.",
+  QUANTUM_QUOTES[0],
+  `Divsteps is a step used in modular inversion, a routine that appears in elliptic-curve arithmetic. ${QUANTUM_QUOTES[1]}`,
+  `${QUANTUM_QUOTES[2]} Whether that trade is worthwhile depends on the error rates of the hardware that runs the circuit.`,
+  `${QUANTUM_QUOTES[3]} The decoder is one part of a larger error-correction pipeline.`,
+  "The designs have so far been checked in simulation only, and running them on physical machines is left for future work.",
+];
+const QUANTUM_FACETS = {
+  contentType: "original-research",
+  sponsoredOrPaid: false,
+  technicalSubstance: "substantial",
+  unsupportedHype: false,
+  vendorSelfReport: true,
+  reportingOrganization: "Anthropic",
+  promotionalEvidence: "",
+};
+const QUANTUM_TEXT = {
+  en: {
+    headline: "Claude finds smaller designs for basic quantum circuits",
+    summary:
+      "Anthropic reports that Claude found new designs for eight basic quantum routines that need less hardware, in qubits and gates, than earlier published versions. In one circuit family, 12% more qubits buy 17 times fewer gates.",
+    whyItMatters:
+      "Smaller circuits reduce the hardware needed to run quantum algorithms, although these results come from the company's own evaluation.",
+  },
+  fr: {
+    headline: "Claude trouve des circuits quantiques de base plus compacts",
+    summary:
+      "Selon Anthropic, Claude a trouvé de nouvelles conceptions pour huit routines quantiques de base, qui demandent moins de matériel, en qubits et en portes, que les versions publiées auparavant. Dans une famille de circuits, 12 % de qubits en plus permettent 17 fois moins de portes.",
+    whyItMatters:
+      "Des circuits plus petits réduisent le matériel nécessaire aux algorithmes quantiques, mais ces résultats proviennent de l’évaluation de l’entreprise elle-même.",
+  },
+};
+
 let server;
 const hosts = {
   alpha: "news.alpha-devtools.com",
@@ -131,6 +181,9 @@ const hosts = {
   iota: "www.iota-blocked.com",
   kappa: "www.kappa-archive.com",
   omega: "www.omega-fake.com",
+  quantum: "www.anthropic.com",
+  mu: "www.mu-partner.com",
+  nu: "www.nuquantum.com",
 };
 const paths = {
   alpha: "/releases/v5-0",
@@ -143,6 +196,9 @@ const paths = {
   iota: "/posts/edge-runtime",
   kappa: "/2026/09/plugin-apis",
   omega: "/story/quantum-breakthrough",
+  quantum: "/research/designing-efficient-quantum-circuits",
+  mu: "/insights/cloud-savings",
+  nu: "/notebook/error-rates",
 };
 const urlOf = (name, suffix = "") =>
   `https://${hosts[name]}:${server.port}${paths[name]}${suffix}`;
@@ -194,6 +250,27 @@ function buildPages() {
   pages.iota = {
     headline: "Edge runtime update",
     site: "Iota",
+    published: "2026-10-21T10:00:00Z",
+    paragraphs: FILLER,
+  };
+  pages.quantum = {
+    headline: QUANTUM_HEADLINE,
+    site: "Anthropic",
+    published: "2026-10-22T16:00:00Z",
+    paragraphs: QUANTUM,
+  };
+  // Labelled as sponsored in its metadata: dropped before any model call.
+  pages.mu = {
+    headline: "How one platform cut cloud costs for developers",
+    site: "Mu Partner Studio",
+    published: "2026-10-21T10:00:00Z",
+    paragraphs: FILLER,
+    meta: '<meta property="article:section" content="Sponsored">',
+  };
+  // A vendor blog whose site name does not include the company's name.
+  pages.nu = {
+    headline: "Measuring two-qubit gate error rates on our latest chip",
+    site: "The Qubit Notebook",
     published: "2026-10-21T10:00:00Z",
     paragraphs: FILLER,
   };
@@ -271,6 +348,29 @@ const CLAIMS = {
       ],
     ],
   },
+  [QUANTUM_HEADLINE]: {
+    category: "applied-ai",
+    relevance: 4,
+    editorial: QUANTUM_FACETS,
+    claims: [
+      [
+        "Claude produced circuit designs for eight computational primitives that used fewer qubits and fewer gates than the best previously published algorithms.",
+        QUANTUM_QUOTES[0],
+      ],
+      [
+        "Claude produced the first reversible implementation of divsteps with no stored branch history.",
+        QUANTUM_QUOTES[1],
+      ],
+      [
+        "One circuit in the family uses 12% more qubits but 17 times fewer gates than the smallest previous design.",
+        QUANTUM_QUOTES[2],
+      ],
+      [
+        "The optimizations reduced the decoder's gate count by a factor of 12 relative to Google's previous construction.",
+        QUANTUM_QUOTES[3],
+      ],
+    ],
+  },
   [HEADLINES.delta]: {
     category: "emerging-technology",
     relevance: 4,
@@ -294,6 +394,7 @@ const TEXTS = {
   [HEADLINES.gamma]: SAMPLE.s2,
   [HEADLINES.alpha]: SAMPLE.s3,
   [HEADLINES.delta]: SAMPLE.s4,
+  [QUANTUM_HEADLINE]: QUANTUM_TEXT,
 };
 
 function discoveryCandidates(categories) {
@@ -436,7 +537,16 @@ function makeTransport(s = {}) {
         return ok(stage, {
           relevant: true,
           mainSubjectMatchesHeadline: true,
-          isPromotional: false,
+          editorial: {
+            contentType: "independent-reporting",
+            sponsoredOrPaid: false,
+            technicalSubstance: "substantial",
+            unsupportedHype: false,
+            vendorSelfReport: false,
+            reportingOrganization: "",
+            promotionalEvidence: "",
+            ...(spec.editorial ?? {}),
+          },
           isOpinion: false,
           category: spec.category,
           practicalRelevance: spec.relevance,
@@ -1608,6 +1718,431 @@ describe(
       });
       assert.match(reasonOf(report, "gamma"), /^QUOTES_NOT_FOUND/);
       assert.match(reasonOf(report, "delta"), /^QUOTES_NOT_FOUND/);
+    });
+
+    // --- F5: editorial classification ----------------------------------------
+
+    // Adds fixture articles to the applied-ai discovery call, with their URLs
+    // among the URLs the search tool returned.
+    const extraCandidates = (...names) => ({
+      discovery: (categories, candidates) => ({
+        candidates: categories.includes("applied-ai")
+          ? [
+              ...candidates,
+              ...names.map((name) => ({
+                url: urlOf(name),
+                headline: pages[name].headline,
+                publisher: pages[name].site,
+                publishedDate: "unknown",
+                category: "applied-ai",
+                practicalValue: "Practical value.",
+              })),
+            ]
+          : candidates,
+      }),
+      discoverySources: (categories, sources) =>
+        categories.includes("applied-ai")
+          ? [...sources, ...names.map((name) => urlOf(name))]
+          : sources,
+    });
+    const extractedHeadlines = (requests) =>
+      requests
+        .filter((r) => r.stage === "extraction")
+        .map((r) => taskData(r.body).headline);
+
+    test("F5: the vendor research article rejected as PROMOTIONAL in run-26e47111 is accepted, verified and attributed", async () => {
+      const { status, edition, report, requests } = await run(
+        extraCandidates("quantum"),
+      );
+      assert.equal(status, "edition", report.reason);
+      const quantum = byUrl(report, "quantum")[0];
+      assert.equal(quantum.status, "selected", quantum.reason);
+      assert.equal(quantum.sourceKind, "vendor");
+      assert.deepEqual(quantum.editorial, {
+        policyVersion: 1,
+        contentType: "original-research",
+        technicalSubstance: "substantial",
+        sponsoredOrPaid: false,
+        unsupportedHype: false,
+        vendorSelfReport: true,
+        vendorSelfReportSignals: ["model", "source-policy"],
+        attributedTo: "Anthropic",
+        attributionBasis: "publisher-name",
+        promotional: false,
+        promotionalCode: null,
+        promotionalReason: null,
+        modelNote: "",
+      });
+      // The usual evidence rules still applied to every claim.
+      assert.equal(quantum.provenance.matched, true);
+      assert.equal(quantum.verification.status, "verified");
+      assert.ok(quantum.verification.claims.every((cl) => cl.quoteFound));
+      assert.equal(quantum.verification.distinctSupported, 4);
+
+      // Published with attribution in both languages and a machine-readable flag.
+      const story = edition.stories.find((s) => s.url === urlOf("quantum"));
+      assert.deepEqual(story.evidence.editorial, {
+        contentType: "original-research",
+        technicalSubstance: "substantial",
+        vendorSelfReport: true,
+        attributedTo: "Anthropic",
+      });
+      assert.match(story.en.summary, /^Anthropic reports that/);
+      assert.match(story.fr.summary, /^Selon Anthropic,/);
+      const alpha = edition.stories.find((s) => s.url === urlOf("alpha"));
+      assert.deepEqual(alpha.evidence.editorial, {
+        contentType: "independent-reporting",
+        technicalSubstance: "substantial",
+        vendorSelfReport: false,
+        attributedTo: null,
+      });
+
+      // The writer and the reviewer are told who reported the findings.
+      const writing = taskData(
+        requests.find((r) => r.stage === "writing").body,
+      );
+      for (const s of writing.stories)
+        assert.equal(
+          s.selfReportedBy,
+          s.key === quantum.key ? "Anthropic" : null,
+        );
+      const review = taskData(requests.find((r) => r.stage === "review").body);
+      assert.equal(
+        review.stories.find((s) => s.key === quantum.key).selfReportedBy,
+        "Anthropic",
+      );
+      const extraction = requests.find(
+        (r) =>
+          r.stage === "extraction" &&
+          taskData(r.body).headline === QUANTUM_HEADLINE,
+      );
+      assert.match(
+        extraction.body.instructions,
+        /A company reporting positive results about its own technology is a self-report, not advertising/,
+      );
+
+      // Report and Phase 1 compatibility.
+      assert.equal(report.editorialPolicy.version, 1);
+      assert.deepEqual(report.validation.errors, []);
+      const parsed = site.parseEdition(edition);
+      assert.ok(parsed, "site parseEdition accepts the edition");
+      assert.equal(parsed.stories.length, edition.stories.length);
+      assert.equal(
+        parsed.stories.find((s) => s.url === urlOf("quantum")).fr.summary,
+        story.fr.summary,
+      );
+    });
+
+    test("F5: the quantum article is credited to Anthropic even when the model names a company from the body or headline", async () => {
+      // "Google" appears only in the article body; "Claude" in the headline.
+      for (const named of ["Google", "Claude"]) {
+        const { status, report, edition } = await run({
+          ...extraCandidates("quantum"),
+          extraction: (headline, spec) => {
+            if (headline === QUANTUM_HEADLINE)
+              spec.editorial = {
+                ...QUANTUM_FACETS,
+                reportingOrganization: named,
+              };
+          },
+        });
+        assert.equal(status, "edition", report.reason);
+        const quantum = byUrl(report, "quantum")[0];
+        assert.equal(quantum.editorial.attributedTo, "Anthropic", named);
+        assert.equal(quantum.editorial.attributionBasis, "publisher", named);
+        assert.equal(quantum.status, "selected", quantum.reason);
+        assert.equal(
+          edition.stories.find((s) => s.url === urlOf("quantum")).evidence
+            .editorial.attributedTo,
+          "Anthropic",
+        );
+      }
+    });
+
+    test("F5: the verified source domain identifies a vendor whose site name omits it; other names fall back to the publisher", async () => {
+      for (const [named, expected] of [
+        ["NuQuantum", ["NuQuantum", "source-domain"]],
+        ["Google", ["The Qubit Notebook", "publisher"]],
+      ]) {
+        const { report } = await run({
+          ...extraCandidates("nu"),
+          extraction: (headline, spec) => {
+            if (headline === pages.nu.headline)
+              spec.editorial = {
+                contentType: "engineering-report",
+                vendorSelfReport: true,
+                reportingOrganization: named,
+              };
+          },
+        });
+        const nu = byUrl(report, "nu")[0];
+        assert.deepEqual(
+          [nu.editorial.attributedTo, nu.editorial.attributionBasis],
+          expected,
+          named,
+        );
+      }
+    });
+
+    test("F5: a vendor self-report written without attribution gets one repair; if still unattributed it is dropped", async () => {
+      const unattributed = (headline, entry) => {
+        if (headline !== QUANTUM_HEADLINE) return;
+        entry.en.summary = entry.en.summary.replace(
+          "Anthropic reports that Claude",
+          "Claude",
+        );
+        entry.fr.summary = entry.fr.summary.replace(
+          "Selon Anthropic, Claude",
+          "Claude",
+        );
+      };
+      const repaired = await run({
+        ...extraCandidates("quantum"),
+        writing: unattributed,
+      });
+      assert.equal(repaired.status, "edition", repaired.report.reason);
+      const quantum = byUrl(repaired.report, "quantum")[0];
+      assert.deepEqual(repaired.report.repairPass.stories, [quantum.key]);
+      const asked = taskData(
+        repaired.requests.find((r) => r.stage === "repair").body,
+      ).stories[0];
+      assert.equal(asked.selfReportedBy, "Anthropic");
+      assert.deepEqual(
+        asked.problems.map((p) => p.split(":")[0]),
+        ["ATTRIBUTION_MISSING", "ATTRIBUTION_MISSING"],
+      );
+      assert.equal(quantum.status, "selected");
+
+      const stillBad = await run({
+        ...extraCandidates("quantum"),
+        writing: unattributed,
+        repair: unattributed,
+      });
+      assert.equal(stillBad.status, "edition", stillBad.report.reason);
+      assert.equal(
+        reasonOf(stillBad.report, "quantum"),
+        "CHECKS_FAILED: ATTRIBUTION_MISSING",
+      );
+      assert.ok(
+        !stillBad.edition.stories.some((s) => s.url === urlOf("quantum")),
+      );
+    });
+
+    test("F5: English and French are held to the same attribution standard", async () => {
+      const frOnly = (headline, entry) => {
+        if (headline === QUANTUM_HEADLINE)
+          entry.fr.summary = entry.fr.summary.replace(
+            "Selon Anthropic, Claude",
+            "Claude",
+          );
+      };
+      const { report } = await run({
+        ...extraCandidates("quantum"),
+        writing: frOnly,
+        repair: frOnly,
+      });
+      assert.equal(
+        reasonOf(report, "quantum"),
+        "CHECKS_FAILED: ATTRIBUTION_MISSING",
+      );
+
+      // Final validation enforces the same rule on a finished edition.
+      const { edition } = await run(extraCandidates("quantum"));
+      const i = edition.stories.findIndex((s) => s.url === urlOf("quantum"));
+      assert.deepEqual(
+        validateEdition(edition, { policy, now: NOW }).errors,
+        [],
+      );
+      for (const [lang, from] of [
+        ["en", "Anthropic reports that Claude"],
+        ["fr", "Selon Anthropic, Claude"],
+      ]) {
+        const mutated = structuredClone(edition);
+        mutated.stories[i][lang].summary = mutated.stories[i][
+          lang
+        ].summary.replace(from, "Claude");
+        assert.deepEqual(
+          validateEdition(mutated, { policy, now: NOW }).errors.map((e) => [
+            e.code,
+            e.path,
+          ]),
+          [["ATTRIBUTION_MISSING", `stories[${i}].${lang}.summary`]],
+        );
+      }
+    });
+
+    test("F5: sponsored content and marketing are rejected with recorded reasons; the vendor article is not", async () => {
+      const { status, report, requests } = await run({
+        ...extraCandidates("quantum", "mu"),
+        extraction: (headline, spec) => {
+          if (headline === HEADLINES.gamma)
+            spec.editorial = {
+              sponsoredOrPaid: true,
+              promotionalEvidence: "The page says it is partner content.",
+            };
+          if (headline === HEADLINES.epsilon)
+            spec.editorial = {
+              contentType: "marketing",
+              technicalSubstance: "limited",
+              promotionalEvidence: "Mostly a sales pitch for a paid plan.",
+            };
+        },
+      });
+      assert.equal(status, "edition", report.reason);
+
+      // Labelled sponsored in its metadata: dropped before any model call.
+      assert.equal(reasonOf(report, "mu"), "SPONSORED");
+      assert.ok(!extractedHeadlines(requests).includes(pages.mu.headline));
+
+      const gamma = byUrl(report, "gamma")[0];
+      assert.equal(gamma.reason, "PROMOTIONAL_SPONSORED");
+      assert.equal(gamma.editorial.promotional, true);
+      assert.equal(
+        gamma.editorial.promotionalReason,
+        "Paid, sponsored or partner content",
+      );
+      assert.equal(
+        gamma.editorial.modelNote,
+        "The page says it is partner content.",
+      );
+      const epsilon = byUrl(report, "epsilon")[0];
+      assert.equal(epsilon.reason, "PROMOTIONAL_MARKETING");
+      assert.equal(
+        epsilon.editorial.promotionalReason,
+        "Primarily promotional marketing material",
+      );
+      // Rejected articles are never sent for verification.
+      const verification = taskData(
+        requests.find((r) => r.stage === "verification").body,
+      );
+      assert.ok(
+        !verification.items.some((it) =>
+          [gamma.key, epsilon.key].includes(it.key),
+        ),
+      );
+      assert.equal(byUrl(report, "quantum")[0].status, "selected");
+    });
+
+    test("F5: advertising and unsupported hype are rejected; independent reporting with limited detail is not", async () => {
+      const { report } = await run({
+        ...extraCandidates("quantum"),
+        extraction: (headline, spec) => {
+          if (headline === HEADLINES.beta)
+            spec.editorial = {
+              contentType: "advertising",
+              vendorSelfReport: true,
+              reportingOrganization: "Beta AI",
+            };
+          if (headline === HEADLINES.delta)
+            spec.editorial = {
+              unsupportedHype: true,
+              promotionalEvidence: "Promises to change everything.",
+            };
+          if (headline === HEADLINES.gamma)
+            spec.editorial = { technicalSubstance: "limited" };
+        },
+      });
+      assert.equal(reasonOf(report, "beta"), "PROMOTIONAL_ADVERTISING");
+      assert.equal(reasonOf(report, "delta"), "PROMOTIONAL_HYPE");
+      const gamma = byUrl(report, "gamma")[0];
+      assert.equal(gamma.editorial.promotional, false);
+      assert.equal(gamma.status, "selected", gamma.reason);
+    });
+
+    test("F5: a product announcement with measurable findings passes as an attributed vendor self-report", async () => {
+      const lower = (text) => `${text[0].toLowerCase()}${text.slice(1)}`;
+      const announcement = (substance) => ({
+        extraction: (headline, spec) => {
+          if (headline === HEADLINES.alpha)
+            spec.editorial = {
+              contentType: "product-announcement",
+              technicalSubstance: substance,
+              vendorSelfReport: true,
+              reportingOrganization: "Alpha DevTools",
+            };
+        },
+        writing: (headline, entry) => {
+          if (headline !== HEADLINES.alpha) return;
+          entry.en.summary = `Alpha DevTools says ${lower(entry.en.summary)}`;
+          entry.fr.summary = `Selon Alpha DevTools, ${lower(entry.fr.summary)}`;
+        },
+      });
+      const { status, report, edition } = await run(
+        announcement("substantial"),
+      );
+      assert.equal(status, "edition", report.reason);
+      const alpha = byUrl(report, "alpha")[0];
+      assert.equal(alpha.status, "selected", alpha.reason);
+      assert.deepEqual(alpha.editorial.vendorSelfReportSignals, ["model"]);
+      assert.equal(alpha.editorial.attributedTo, "Alpha DevTools");
+      assert.equal(alpha.editorial.attributionBasis, "publisher-name");
+      assert.deepEqual(
+        edition.stories.find((s) => s.url === urlOf("alpha")).evidence
+          .editorial,
+        {
+          contentType: "product-announcement",
+          technicalSubstance: "substantial",
+          vendorSelfReport: true,
+          attributedTo: "Alpha DevTools",
+        },
+      );
+
+      const thin = await run(announcement("limited"));
+      assert.equal(reasonOf(thin.report, "alpha"), "PROMOTIONAL_LOW_SUBSTANCE");
+    });
+
+    test("F5: classification never bypasses provenance, quote matching, verification or distinct evidence", async () => {
+      // Not returned by the search tool: rejected even from a preferred vendor.
+      const fabricated = await run({
+        ...extraCandidates("quantum"),
+        discoverySources: (categories, sources) => sources,
+      });
+      assert.match(reasonOf(fabricated.report, "quantum"), /^FABRICATED_URL/);
+      assert.ok(
+        !extractedHeadlines(fabricated.requests).includes(QUANTUM_HEADLINE),
+      );
+
+      // Claims the article does not support.
+      const unsupported = await run({
+        ...extraCandidates("quantum"),
+        verdict: (key, claimId, reqs) =>
+          headlineOf(reqs, key) === QUANTUM_HEADLINE ? "partial" : "entailed",
+      });
+      assert.match(
+        reasonOf(unsupported.report, "quantum"),
+        /^UNSUPPORTED_CLAIMS/,
+      );
+
+      // Paraphrased quotes.
+      const paraphrased = await run({
+        ...extraCandidates("quantum"),
+        extraction: (headline, spec) => {
+          if (headline === QUANTUM_HEADLINE)
+            spec.claims = spec.claims.map(([text]) => [
+              text,
+              `Claude found better quantum circuits than anyone before: ${text}`,
+            ]);
+        },
+      });
+      assert.match(
+        reasonOf(paraphrased.report, "quantum"),
+        /^QUOTES_NOT_FOUND/,
+      );
+
+      // The same evidence repeated under several claims.
+      const repeated = await run({
+        ...extraCandidates("quantum"),
+        extraction: (headline, spec) => {
+          if (headline === QUANTUM_HEADLINE)
+            spec.claims = spec.claims.map(([text]) => [
+              text,
+              QUANTUM_QUOTES[0],
+            ]);
+        },
+      });
+      const quantum = byUrl(repeated.report, "quantum")[0];
+      assert.equal(quantum.editorial.promotional, false);
+      assert.match(quantum.reason, /^INSUFFICIENT_DISTINCT_EVIDENCE/);
     });
   },
 );
