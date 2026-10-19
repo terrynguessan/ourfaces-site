@@ -36,10 +36,20 @@
 //    research.mjs as --month-spent. It excludes the run's own reservation,
 //    because research.mjs adds the per-run ceiling itself: spent + ceiling <=
 //    monthly budget is the same condition the reservation already checked.
-// 5. After research, `settle --id <id> --report report.json` (same push and
-//    verify loop). Settlement is idempotent: repeating it is a no-op, and a
-//    different figure for the same run is refused.
-// 6. If settlement cannot complete, do nothing: the full reservation stays.
+// 5. After research, `settle --id <id> --report summary.json` (same push and
+//    verify loop), where summary.json is `summary --report report.json` (six
+//    fields, no content). If the run sealed and uploaded a bundle, add the
+//    handoff options: settlement and handoff are then appended in one write,
+//    so a run is never settled without the handoff it produced. Repeating an
+//    identical call is a no-op; anything different is refused.
+// 6. If settlement cannot complete, do nothing: the full reservation stays,
+//    and without a handoff nothing can be published for that run.
+//
+// Handoff (Sunday): findHandoff(state, edition) returns the latest handoff
+// for the edition with the research run id from its settlement; provenance.mjs
+// checks it against GitHub's artifact and run-attempt records. A handoff
+// records only GitHub identifiers and the bundle digest; edition and research
+// run id come from the reservation and settlement it follows.
 
 import { createHash, randomBytes } from "node:crypto";
 import {
@@ -122,7 +132,22 @@ const FIELDS = {
     "finishedAt",
     "reason",
   ],
+  handoff: [
+    "seq",
+    "type",
+    "prev",
+    "at",
+    "id",
+    "workflowRunId",
+    "runAttempt",
+    "artifactId",
+    "bundleDigest",
+  ],
 };
+// GitHub run attempts are small positive integers; 100 is a generous cap.
+const MAX_RUN_ATTEMPT = 100;
+const DIGEST = /^[0-9a-f]{64}$/;
+const isGithubId = (value) => Number.isSafeInteger(value) && value > 0;
 const ID = /^[a-z0-9][a-z0-9-]{1,63}$/;
 const REF = /^[A-Za-z0-9._-]{1,64}$/;
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -230,6 +255,19 @@ function recordProblem(r) {
           : "manual settlement fields";
       return "source";
     }
+    case "handoff":
+      if (typeof r.id !== "string" || !ID.test(r.id)) return "id";
+      if (!isGithubId(r.workflowRunId)) return "workflowRunId";
+      if (
+        !Number.isSafeInteger(r.runAttempt) ||
+        r.runAttempt < 1 ||
+        r.runAttempt > MAX_RUN_ATTEMPT
+      )
+        return "runAttempt";
+      if (!isGithubId(r.artifactId)) return "artifactId";
+      if (typeof r.bundleDigest !== "string" || !DIGEST.test(r.bundleDigest))
+        return "bundleDigest";
+      return null;
     default:
       return "unknown type";
   }
@@ -289,6 +327,7 @@ function applyRecord(state, r, where) {
       state.reservations.set(r.id, {
         reserve: r,
         settlement: null,
+        handoff: null,
         supersededBy: null,
       });
       return;
@@ -303,6 +342,32 @@ function applyRecord(state, r, where) {
       )
         corrupt(`${r.id} finished before it was reserved`);
       entry.settlement = r;
+      return;
+    }
+    case "handoff": {
+      // Only ever written together with its own successful report settlement.
+      const entry = state.reservations.get(r.id);
+      const previous = state.records.at(-1);
+      if (
+        !entry ||
+        previous?.type !== "settle" ||
+        previous.id !== r.id ||
+        previous.at !== r.at ||
+        previous.source !== "report" ||
+        previous.status !== "edition"
+      )
+        corrupt(
+          `handoff for ${r.id} does not directly follow its successful report settlement`,
+        );
+      if (entry.handoff) corrupt(`second handoff for ${r.id}`);
+      const attempt = `${r.workflowRunId}/${r.runAttempt}`;
+      if (state.artifactIds.has(r.artifactId))
+        corrupt(`artifact ${r.artifactId} is already registered`);
+      if (state.runAttempts.has(attempt))
+        corrupt(`workflow run attempt ${attempt} is already registered`);
+      state.artifactIds.add(r.artifactId);
+      state.runAttempts.add(attempt);
+      entry.handoff = r;
       return;
     }
   }
@@ -327,6 +392,8 @@ export function parseLedger(raw, { now = new Date() } = {}) {
     records: [],
     hashes: [],
     head: ZERO_HASH,
+    artifactIds: new Set(),
+    runAttempts: new Set(),
   };
   text
     .slice(0, -1)
@@ -428,6 +495,34 @@ export function monthTotalMicro(state, month) {
   return total;
 }
 
+/**
+ * Sunday: the handoff to publish for an edition, or null. Several successful
+ * runs for one edition can only exist one after another (one unsettled
+ * reservation per edition), so the latest registration wins.
+ */
+export function findHandoff(state, edition) {
+  let latest = null;
+  for (const entry of state.reservations.values())
+    if (
+      entry.handoff &&
+      entry.reserve.edition === edition &&
+      (!latest || entry.handoff.seq > latest.handoff.seq)
+    )
+      latest = entry;
+  if (!latest) return null;
+  return {
+    reservationId: latest.reserve.id,
+    edition: latest.reserve.edition,
+    kind: latest.reserve.kind,
+    researchRunId: latest.settlement.reportRunId,
+    workflowRunId: latest.handoff.workflowRunId,
+    runAttempt: latest.handoff.runAttempt,
+    artifactId: latest.handoff.artifactId,
+    bundleDigest: latest.handoff.bundleDigest,
+    registeredAt: latest.handoff.at,
+  };
+}
+
 /** Month totals and unsettled reservations, for status output and the workflow summary. */
 export function ledgerSummary(state) {
   const months = new Set([
@@ -452,6 +547,15 @@ export function ledgerSummary(state) {
         reservedAt: e.reserve.at,
         amountUsd: microToUsd(e.reserve.amountMicroUsd),
         supersededBy: e.supersededBy,
+      })),
+    handoffs: [...state.reservations.values()]
+      .filter((e) => e.handoff)
+      .map((e) => ({
+        id: e.reserve.id,
+        edition: e.reserve.edition,
+        workflowRunId: e.handoff.workflowRunId,
+        runAttempt: e.handoff.runAttempt,
+        artifactId: e.handoff.artifactId,
       })),
   };
 }
@@ -609,6 +713,87 @@ export function planReportSettlement(state, { id, report, at }) {
 }
 
 /**
+ * The six report fields settlement uses, validated, as a small object that can
+ * pass between workflow jobs. It carries no story text, quotes or URLs.
+ */
+export function settlementSummary(report) {
+  const bad = (message) => fail("REPORT_MISMATCH", `summary: ${message}`);
+  if (!report || typeof report !== "object") bad("no report");
+  if (typeof report.runId !== "string" || !RUN_ID.test(report.runId))
+    bad("runId");
+  if (!RESEARCH_STATUSES.includes(report.status)) bad("status");
+  if (!isSaturdayDate(report.edition)) bad("edition");
+  if (!isInstant(report.startedAt) || !isInstant(report.finishedAt))
+    bad("times");
+  const counted = report.budget?.runTotalCountedUsd;
+  if (typeof counted !== "number" || !isMicro(usdToMicro(counted)))
+    bad("counted cost");
+  return {
+    runId: report.runId,
+    status: report.status,
+    edition: report.edition,
+    startedAt: report.startedAt,
+    finishedAt: report.finishedAt,
+    budget: { runTotalCountedUsd: counted },
+  };
+}
+
+/**
+ * Settlement plus handoff for a run that produced an encrypted bundle: both
+ * records are planned together and appended in one write. Only a successful
+ * ("edition") report settlement can carry a handoff. Repeating the identical
+ * call is a no-op; a run already settled without this handoff is refused.
+ */
+export function planSettlementWithHandoff(state, { id, report, handoff, at }) {
+  const settled = planReportSettlement(state, { id, report, at });
+  if (report.status !== "edition")
+    fail(
+      "HANDOFF_REFUSED",
+      `${id}: only a successful research run (status edition) can hand off a bundle`,
+    );
+  const record = {
+    type: "handoff",
+    at: at.toISOString(),
+    id,
+    workflowRunId: handoff?.workflowRunId,
+    runAttempt: handoff?.runAttempt,
+    artifactId: handoff?.artifactId,
+    bundleDigest: handoff?.bundleDigest,
+  };
+  const problem = recordProblem(record);
+  if (problem) fail("INVALID_INPUT", `handoff ${problem}`);
+  const entry = state.reservations.get(id);
+  if (settled.alreadySettled) {
+    const same =
+      entry.handoff &&
+      ["workflowRunId", "runAttempt", "artifactId", "bundleDigest"].every(
+        (k) => entry.handoff[k] === record[k],
+      );
+    if (!same)
+      fail(
+        "HANDOFF_CONFLICT",
+        `${id} is already settled ${entry.handoff ? "with a different handoff" : "without a handoff"}`,
+      );
+    return { records: [], alreadySettled: true, alreadyRegistered: true };
+  }
+  if (state.artifactIds.has(record.artifactId))
+    fail(
+      "HANDOFF_CONFLICT",
+      `Artifact ${record.artifactId} is already registered`,
+    );
+  if (state.runAttempts.has(`${record.workflowRunId}/${record.runAttempt}`))
+    fail(
+      "HANDOFF_CONFLICT",
+      `Workflow run ${record.workflowRunId} attempt ${record.runAttempt} is already registered`,
+    );
+  return {
+    records: [settled.record, record],
+    alreadySettled: false,
+    alreadyRegistered: false,
+  };
+}
+
+/**
  * Manual settlement of a run without a usable report. "crash-unknown" keeps
  * the full reservation; "provider-reconciliation" records a figure taken from
  * the provider's usage page.
@@ -728,22 +913,34 @@ function withLock(path, fn) {
   }
 }
 
-/** Validates, plans and appends one record under the lock. */
+/**
+ * Validates, plans and appends records under the lock. Several planned records
+ * (settlement + handoff) are written in one atomic replacement: all or none.
+ */
 function update(path, at, plan) {
   return withLock(path, () => {
     const { text, state } = readLedger(path, { now: at });
     const planned = plan(state);
-    if (!planned.record)
+    const list = planned.records ?? (planned.record ? [planned.record] : []);
+    if (list.length === 0)
       return { ...planned, head: state.head, appended: false };
-    const record = {
-      seq: state.records.length + 1,
-      prev: state.head,
-      ...planned.record,
-    };
-    const next = `${text}${serialize(record)}\n`;
+    let { head } = state;
+    let next = text;
+    const written = list.map((r, i) => {
+      const record = { seq: state.records.length + 1 + i, prev: head, ...r };
+      const line = serialize(record);
+      next += `${line}\n`;
+      head = sha256(line);
+      return record;
+    });
     const after = parseLedger(next, { now: at }); // the new ledger must validate
     atomicWrite(path, next);
-    return { ...planned, record, head: after.head, appended: true };
+    return {
+      ...planned,
+      ...(planned.records ? { records: written } : { record: written[0] }),
+      head: after.head,
+      appended: true,
+    };
   });
 }
 
@@ -776,6 +973,8 @@ export const settleFromReport = (path, { at = new Date(), ...input }) =>
   update(path, at, (s) => planReportSettlement(s, { ...input, at }));
 export const settleManually = (path, { at = new Date(), ...input }) =>
   update(path, at, (s) => planManualSettlement(s, { ...input, at }));
+export const settleAndRegister = (path, { at = new Date(), ...input }) =>
+  update(path, at, (s) => planSettlementWithHandoff(s, { ...input, at }));
 
 // CLI ------------------------------------------------------------------------------------------
 // node scripts/tech-brief/ledger.mjs <command> --ledger PATH [--now ISO] ...
@@ -785,9 +984,12 @@ export const settleManually = (path, { at = new Date(), ...input }) =>
 //   reserve --id ID --edition YYYY-MM-DD --kind scheduled|manual [--supersedes ID]
 //   month-spent --id ID
 //   settle --id ID --report PATH
+//     [--workflow-run-id N --run-attempt N --artifact-id N --bundle-digest HEX]
 //   settle --id ID --manual --reason REASON [--usd AMOUNT]
+//   handoff --edition YYYY-MM-DD
 //   status
 //   verify [--contains ID]
+// node scripts/tech-brief/ledger.mjs summary --report PATH   (no --ledger)
 // Prints one JSON object. Exit 0 ok, 3 budget exceeded, 4 refused or invalid
 // ledger (fail closed), 1 usage error.
 if (
@@ -805,6 +1007,31 @@ if (
   };
   const path = option("--ledger");
   const at = option("--now") === null ? new Date() : new Date(option("--now"));
+  // Whole numbers only; anything else is passed on and refused by validation.
+  const integer = (name) => {
+    const value = option(name);
+    return /^\d{1,16}$/.test(value ?? "") ? Number(value) : value;
+  };
+  if (command === "summary") {
+    try {
+      out(0, {
+        ok: true,
+        command,
+        summary: settlementSummary(
+          JSON.parse(readFileSync(option("--report") ?? "", "utf8")),
+        ),
+      });
+    } catch (error) {
+      out(4, {
+        ok: false,
+        code: error instanceof LedgerError ? error.code : "ERROR",
+        message:
+          error instanceof LedgerError
+            ? error.message
+            : "Cannot read the report",
+      });
+    }
+  }
   if (!path || Number.isNaN(at.getTime()))
     out(1, {
       ok: false,
@@ -854,22 +1081,66 @@ if (
         };
         break;
       }
-      case "settle":
-        result = args.includes("--manual")
-          ? settleManually(path, {
-              at,
-              id: option("--id"),
-              reason: option("--reason"),
-              countedUsd: option("--usd"),
-            })
-          : settleFromReport(path, {
-              at,
-              id: option("--id"),
-              report: JSON.parse(
-                readFileSync(option("--report") ?? "", "utf8"),
-              ),
+      case "settle": {
+        const handoffOptions = [
+          "--workflow-run-id",
+          "--run-attempt",
+          "--artifact-id",
+          "--bundle-digest",
+        ];
+        const given = handoffOptions.filter((name) => option(name) !== null);
+        if (given.length && given.length !== handoffOptions.length)
+          out(1, {
+            ok: false,
+            code: "USAGE",
+            message: `A handoff needs all of ${handoffOptions.join(", ")}`,
+          });
+        if (args.includes("--manual")) {
+          if (given.length)
+            out(1, {
+              ok: false,
+              code: "USAGE",
+              message: "A manual settlement cannot carry a handoff",
             });
+          result = settleManually(path, {
+            at,
+            id: option("--id"),
+            reason: option("--reason"),
+            countedUsd: option("--usd"),
+          });
+          break;
+        }
+        const report = settlementSummary(
+          JSON.parse(readFileSync(option("--report") ?? "", "utf8")),
+        );
+        result = given.length
+          ? settleAndRegister(path, {
+              at,
+              id: option("--id"),
+              report,
+              handoff: {
+                workflowRunId: integer("--workflow-run-id"),
+                runAttempt: integer("--run-attempt"),
+                artifactId: integer("--artifact-id"),
+                bundleDigest: option("--bundle-digest"),
+              },
+            })
+          : settleFromReport(path, { at, id: option("--id"), report });
         break;
+      }
+      case "handoff": {
+        const found = findHandoff(
+          readLedger(path, { now: at }).state,
+          option("--edition"),
+        );
+        if (!found)
+          throw new LedgerError(
+            "NOT_FOUND",
+            `No handoff for edition ${option("--edition")}`,
+          );
+        result = { handoff: found };
+        break;
+      }
       case "status":
         result = ledgerSummary(readLedger(path, { now: at }).state);
         break;

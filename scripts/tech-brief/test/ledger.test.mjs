@@ -17,6 +17,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
   LedgerError,
+  findHandoff,
   formatLedger,
   initLedger,
   ledgerSummary,
@@ -27,8 +28,10 @@ import {
   recordOpening,
   reserve,
   runMonths,
+  settleAndRegister,
   settleFromReport,
   settleManually,
+  settlementSummary,
   usdToMicro,
 } from "../ledger.mjs";
 import { OpenAIError, createMeter } from "../openai.mjs";
@@ -1313,4 +1316,793 @@ test("CLI: init, opening, reserve, month-spent, settle, status and verify; refus
     [4, "LEDGER_CORRUPT"],
   );
   assert.equal(cli("status").status, 1);
+});
+
+// --- Handoff: settlement and artifact registration --------------------------------------
+
+const DIGEST_A = "a".repeat(64);
+const DIGEST_B = "b".repeat(64);
+const handoffOf = (overrides = {}) => ({
+  workflowRunId: 9100000001,
+  runAttempt: 1,
+  artifactId: 4100000001,
+  bundleDigest: DIGEST_A,
+  ...overrides,
+});
+const register = (path, id, report, handoff, at) =>
+  settleAndRegister(path, { id, report, handoff, at: T(at) });
+const okReport = (
+  edition = "2026-10-17",
+  startedAt = "2026-10-18T00:20:00.000Z",
+) => settlementSummary(reportFor(edition, startedAt, 0.19));
+
+test("handoff: settlement and handoff are appended together in one write, and findHandoff joins them", () => {
+  const path = fresh();
+  reserveAt(path, "gh-9100000001-1", "2026-10-17", "2026-10-18T00:17:00.000Z");
+  const before = lineCount(path);
+  const result = register(
+    path,
+    "gh-9100000001-1",
+    okReport(),
+    handoffOf(),
+    "2026-10-18T00:30:00.000Z",
+  );
+  assert.equal(result.appended, true);
+  assert.deepEqual(
+    result.records.map((r) => r.type),
+    ["settle", "handoff"],
+  );
+  assert.equal(lineCount(path), before + 2);
+  const state = stateOf(path);
+  const [settle, handoff] = state.records.slice(-2);
+  assert.equal(settle.at, handoff.at);
+  assert.deepEqual(findHandoff(state, "2026-10-17"), {
+    reservationId: "gh-9100000001-1",
+    edition: "2026-10-17",
+    kind: "scheduled",
+    researchRunId: "run-0aabd72a",
+    workflowRunId: 9100000001,
+    runAttempt: 1,
+    artifactId: 4100000001,
+    bundleDigest: DIGEST_A,
+    registeredAt: "2026-10-18T00:30:00.000Z",
+  });
+  assert.equal(findHandoff(state, "2026-10-24"), null);
+  assert.equal(monthUsd(path, "2026-10"), 0.19);
+  assert.equal(ledgerSummary(state).handoffs.length, 1);
+});
+
+test("handoff: an identical registration is a no-op; any conflicting one is refused", () => {
+  const path = fresh();
+  reserveAt(path, "r1", "2026-10-17", "2026-10-18T00:17:00.000Z");
+  register(path, "r1", okReport(), handoffOf(), "2026-10-18T00:30:00.000Z");
+  const before = text(path);
+  const again = register(
+    path,
+    "r1",
+    okReport(),
+    handoffOf(),
+    "2026-10-18T00:40:00.000Z",
+  );
+  assert.deepEqual([again.appended, again.alreadyRegistered], [false, true]);
+  for (const change of [
+    { artifactId: 4100000002 },
+    { bundleDigest: DIGEST_B },
+    { runAttempt: 2 },
+    { workflowRunId: 9100000002 },
+  ])
+    assert.equal(
+      codeOf(() =>
+        register(
+          path,
+          "r1",
+          okReport(),
+          handoffOf(change),
+          "2026-10-18T00:40:00.000Z",
+        ),
+      ),
+      "HANDOFF_CONFLICT",
+      JSON.stringify(change),
+    );
+  assert.equal(
+    codeOf(() =>
+      register(
+        path,
+        "r1",
+        settlementSummary(
+          reportFor("2026-10-17", "2026-10-18T00:20:00.000Z", 0.2),
+        ),
+        handoffOf(),
+        "2026-10-18T00:40:00.000Z",
+      ),
+    ),
+    "SETTLEMENT_CONFLICT",
+  );
+  // A plain repeat of the settlement is still a no-op.
+  assert.equal(
+    settleFromReport(path, {
+      id: "r1",
+      report: okReport(),
+      at: T("2026-10-18T00:40:00.000Z"),
+    }).appended,
+    false,
+  );
+  assert.equal(text(path), before);
+
+  // A run settled without a handoff can never gain one later.
+  const plain = fresh();
+  reserveAt(plain, "r1", "2026-10-17", "2026-10-18T00:17:00.000Z");
+  settleFromReport(plain, {
+    id: "r1",
+    report: okReport(),
+    at: T("2026-10-18T00:30:00.000Z"),
+  });
+  const settledOnly = text(plain);
+  assert.equal(
+    codeOf(() =>
+      register(
+        plain,
+        "r1",
+        okReport(),
+        handoffOf(),
+        "2026-10-18T00:40:00.000Z",
+      ),
+    ),
+    "HANDOFF_CONFLICT",
+  );
+  assert.equal(text(plain), settledOnly);
+  assert.equal(findHandoff(stateOf(plain), "2026-10-17"), null);
+});
+
+test("handoff: only a successful research run can register one", () => {
+  const path = fresh();
+  reserveAt(path, "r1", "2026-10-17", "2026-10-18T00:17:00.000Z");
+  const before = text(path);
+  for (const status of ["no-edition", "error", "budget-stop", "blocked"]) {
+    const report = settlementSummary({
+      ...reportFor("2026-10-17", "2026-10-18T00:20:00.000Z", 0.05),
+      status,
+    });
+    assert.equal(
+      codeOf(() =>
+        register(path, "r1", report, handoffOf(), "2026-10-18T00:30:00.000Z"),
+      ),
+      "HANDOFF_REFUSED",
+      status,
+    );
+  }
+  assert.equal(text(path), before);
+  assert.equal(
+    codeOf(() =>
+      register(
+        path,
+        "nope",
+        okReport(),
+        handoffOf(),
+        "2026-10-18T00:30:00.000Z",
+      ),
+    ),
+    "NOT_FOUND",
+  );
+  // The failed run is still settled normally, without a handoff.
+  settleFromReport(path, {
+    id: "r1",
+    report: settlementSummary({
+      ...reportFor("2026-10-17", "2026-10-18T00:20:00.000Z", 0.05),
+      status: "no-edition",
+    }),
+    at: T("2026-10-18T00:30:00.000Z"),
+  });
+  assert.equal(findHandoff(stateOf(path), "2026-10-17"), null);
+});
+
+test("handoff: invalid identifiers and digests are refused without changing the ledger", () => {
+  const path = fresh();
+  reserveAt(path, "r1", "2026-10-17", "2026-10-18T00:17:00.000Z");
+  const before = text(path);
+  for (const change of [
+    { workflowRunId: 0 },
+    { workflowRunId: -1 },
+    { workflowRunId: 1.5 },
+    { workflowRunId: "9100000001" },
+    { workflowRunId: 2 ** 53 },
+    { workflowRunId: null },
+    { runAttempt: 0 },
+    { runAttempt: 101 },
+    { runAttempt: 1.5 },
+    { artifactId: 0 },
+    { artifactId: "4100000001" },
+    { bundleDigest: "A".repeat(64) },
+    { bundleDigest: "a".repeat(63) },
+    { bundleDigest: null },
+  ])
+    assert.equal(
+      codeOf(() =>
+        register(
+          path,
+          "r1",
+          okReport(),
+          handoffOf(change),
+          "2026-10-18T00:30:00.000Z",
+        ),
+      ),
+      "INVALID_INPUT",
+      JSON.stringify(change),
+    );
+  assert.equal(
+    codeOf(() =>
+      register(path, "r1", okReport(), undefined, "2026-10-18T00:30:00.000Z"),
+    ),
+    "INVALID_INPUT",
+  );
+  assert.equal(text(path), before);
+});
+
+test("handoff: an artifact or a workflow run attempt can be registered only once", () => {
+  const path = fresh();
+  reserveAt(path, "r1", "2026-10-17", "2026-10-18T00:17:00.000Z");
+  register(path, "r1", okReport(), handoffOf(), "2026-10-18T00:30:00.000Z");
+  reserveAt(path, "r2", "2026-10-24", "2026-10-25T00:17:00.000Z");
+  const r2 = okReport("2026-10-24", "2026-10-25T00:20:00.000Z");
+  assert.equal(
+    codeOf(() =>
+      register(
+        path,
+        "r2",
+        r2,
+        handoffOf({ workflowRunId: 9100000002 }),
+        "2026-10-25T00:30:00.000Z",
+      ),
+    ),
+    "HANDOFF_CONFLICT",
+    "same artifact",
+  );
+  assert.equal(
+    codeOf(() =>
+      register(
+        path,
+        "r2",
+        r2,
+        handoffOf({ artifactId: 4100000002 }),
+        "2026-10-25T00:30:00.000Z",
+      ),
+    ),
+    "HANDOFF_CONFLICT",
+    "same run attempt",
+  );
+  assert.equal(
+    register(
+      path,
+      "r2",
+      r2,
+      handoffOf({ runAttempt: 2, artifactId: 4100000002 }),
+      "2026-10-25T00:30:00.000Z",
+    ).appended,
+    true,
+    "a later attempt of the same run registers its own artifact",
+  );
+});
+
+test("handoff: re-run attempts and recovery runs are distinct; the latest registration wins and crashed attempts stay counted", () => {
+  const path = fresh();
+  // Attempt 1 of workflow run 100 crashed after reserving.
+  reserveAt(path, "gh-100-1", "2026-10-17", "2026-10-18T00:17:00.000Z");
+  // Attempt 2 of the same run must name the attempt it replaces.
+  assert.equal(
+    codeOf(() =>
+      reserveAt(path, "gh-100-2", "2026-10-17", "2026-10-18T02:00:00.000Z"),
+    ),
+    "ACTIVE_RESERVATION",
+  );
+  reserveAt(path, "gh-100-2", "2026-10-17", "2026-10-18T02:00:00.000Z", {
+    supersedes: "gh-100-1",
+  });
+  register(
+    path,
+    "gh-100-2",
+    okReport("2026-10-17", "2026-10-18T02:05:00.000Z"),
+    handoffOf({ workflowRunId: 100, runAttempt: 2, artifactId: 500 }),
+    "2026-10-18T02:30:00.000Z",
+  );
+  let found = findHandoff(stateOf(path), "2026-10-17");
+  assert.deepEqual(
+    [found.reservationId, found.workflowRunId, found.runAttempt],
+    ["gh-100-2", 100, 2],
+  );
+  // The crashed attempt can never register the same run attempt again.
+  assert.equal(
+    codeOf(() =>
+      register(
+        path,
+        "gh-100-1",
+        okReport("2026-10-17", "2026-10-18T00:20:00.000Z"),
+        handoffOf({ workflowRunId: 100, runAttempt: 2, artifactId: 501 }),
+        "2026-10-18T03:00:00.000Z",
+      ),
+    ),
+    "HANDOFF_CONFLICT",
+  );
+  // A manual recovery is a new workflow run.
+  reserveAt(path, "gh-200-1", "2026-10-17", "2026-10-19T12:00:00.000Z", {
+    kind: "manual",
+  });
+  register(
+    path,
+    "gh-200-1",
+    okReport("2026-10-17", "2026-10-19T12:05:00.000Z"),
+    handoffOf({ workflowRunId: 200, runAttempt: 1, artifactId: 600 }),
+    "2026-10-19T12:30:00.000Z",
+  );
+  found = findHandoff(stateOf(path), "2026-10-17");
+  assert.deepEqual(
+    [found.reservationId, found.kind, found.workflowRunId],
+    ["gh-200-1", "manual", 200],
+  );
+  // Spending: the crashed attempt is still unsettled at $0.75.
+  assert.deepEqual(
+    ledgerSummary(stateOf(path)).unsettled.map((u) => u.id),
+    ["gh-100-1"],
+  );
+  assert.equal(monthUsd(path, "2026-10"), 1.13);
+});
+
+test("handoff: crashes before upload or before settlement leave no handoff and keep the full reservation; a later identical retry registers once", () => {
+  const path = fresh();
+  reserveAt(path, "r1", "2026-10-17", "2026-10-18T00:17:00.000Z");
+  // Crash before upload, or upload done but the settle job never ran: same ledger state.
+  assert.equal(findHandoff(stateOf(path), "2026-10-17"), null);
+  assert.equal(monthUsd(path, "2026-10"), 0.75);
+  // A held lock (another writer, or a crashed one) refuses the registration.
+  writeFileSync(`${path}.lock`, "");
+  const before = text(path);
+  assert.equal(
+    codeOf(() =>
+      register(path, "r1", okReport(), handoffOf(), "2026-10-18T00:30:00.000Z"),
+    ),
+    "LOCKED",
+  );
+  assert.equal(text(path), before);
+  unlinkSync(`${path}.lock`);
+  // The settle job retried: registers once, then any repeat is a no-op.
+  assert.equal(
+    register(path, "r1", okReport(), handoffOf(), "2026-10-18T00:31:00.000Z")
+      .appended,
+    true,
+  );
+  assert.equal(
+    register(path, "r1", okReport(), handoffOf(), "2026-10-18T00:32:00.000Z")
+      .appended,
+    false,
+  );
+  assert.equal(stateOf(path).records.length, 4);
+});
+
+test("handoff: corrupt, misplaced or substituted handoff records fail closed", () => {
+  const init = {
+    type: "init",
+    at: "2026-09-20T00:00:00.000Z",
+    schema: "ourfaces-tech-brief-ledger/1",
+  };
+  const res = (
+    id,
+    edition = "2026-10-17",
+    at = "2026-10-18T00:17:00.000Z",
+  ) => ({
+    type: "reserve",
+    at,
+    id,
+    edition,
+    kind: "scheduled",
+    amountMicroUsd: 750000,
+    supersedes: null,
+  });
+  const settle = (id, extra = {}) => ({
+    type: "settle",
+    at: "2026-10-18T00:30:00.000Z",
+    id,
+    source: "report",
+    status: "edition",
+    countedMicroUsd: 190000,
+    reportRunId: "run-0aabd72a",
+    finishedAt: "2026-10-18T00:24:00.000Z",
+    reason: null,
+    ...extra,
+  });
+  const manual = (id) => ({
+    type: "settle",
+    at: "2026-10-18T00:30:00.000Z",
+    id,
+    source: "manual",
+    status: "unknown",
+    countedMicroUsd: 750000,
+    reportRunId: null,
+    finishedAt: null,
+    reason: "crash-unknown",
+  });
+  const hand = (id, extra = {}) => ({
+    type: "handoff",
+    at: "2026-10-18T00:30:00.000Z",
+    id,
+    workflowRunId: 100,
+    runAttempt: 1,
+    artifactId: 500,
+    bundleDigest: DIGEST_A,
+    ...extra,
+  });
+  const now = { now: T("2026-10-20T00:00:00.000Z") };
+  assert.equal(
+    parseLedger(formatLedger([init, res("r1"), settle("r1"), hand("r1")]), now)
+      .records.length,
+    4,
+  );
+  const cases = {
+    "handoff without settlement": [init, res("r1"), hand("r1")],
+    "record between settlement and handoff": [
+      init,
+      res("r1"),
+      settle("r1"),
+      res("r2", "2026-10-24", "2026-10-18T00:30:00.000Z"),
+      hand("r1"),
+    ],
+    "handoff after a manual settlement": [
+      init,
+      res("r1"),
+      manual("r1"),
+      hand("r1"),
+    ],
+    "handoff after an unsuccessful run": [
+      init,
+      res("r1"),
+      settle("r1", { status: "no-edition" }),
+      hand("r1"),
+    ],
+    "handoff written separately": [
+      init,
+      res("r1"),
+      settle("r1"),
+      hand("r1", { at: "2026-10-18T00:31:00.000Z" }),
+    ],
+    "handoff for another reservation": [
+      init,
+      res("r1"),
+      res("r2", "2026-10-24"),
+      settle("r1"),
+      hand("r2"),
+    ],
+    "second handoff": [
+      init,
+      res("r1"),
+      settle("r1"),
+      hand("r1"),
+      hand("r1", { artifactId: 501 }),
+    ],
+    "unknown reservation": [init, hand("r9")],
+    "artifact reused": [
+      init,
+      res("r1"),
+      settle("r1"),
+      hand("r1"),
+      res("r2", "2026-10-24"),
+      settle("r2"),
+      hand("r2", { workflowRunId: 101 }),
+    ],
+    "run attempt reused": [
+      init,
+      res("r1"),
+      settle("r1"),
+      hand("r1"),
+      res("r2", "2026-10-24"),
+      settle("r2"),
+      hand("r2", { artifactId: 501 }),
+    ],
+    "invalid digest": [
+      init,
+      res("r1"),
+      settle("r1"),
+      hand("r1", { bundleDigest: "x" }),
+    ],
+    "fractional run id": [
+      init,
+      res("r1"),
+      settle("r1"),
+      hand("r1", { workflowRunId: 1.5 }),
+    ],
+  };
+  for (const [name, records] of Object.entries(cases))
+    assert.equal(
+      codeOf(() => parseLedger(formatLedger(records), now)),
+      "LEDGER_CORRUPT",
+      name,
+    );
+  // An edited handoff that is followed by other records breaks the chain;
+  // a substituted last handoff changes the head the workflow compares.
+  const valid = formatLedger([
+    init,
+    res("r1"),
+    settle("r1"),
+    hand("r1"),
+    res("r2", "2026-10-24", "2026-10-19T00:00:00.000Z"),
+  ]);
+  const lines = valid.trim().split("\n");
+  const edited = [...lines];
+  edited[3] = JSON.stringify({ ...JSON.parse(lines[3]), artifactId: 999 });
+  assert.equal(
+    codeOf(() => parseLedger(`${edited.join("\n")}\n`, now)),
+    "LEDGER_CORRUPT",
+  );
+  const lastOnly = formatLedger([init, res("r1"), settle("r1"), hand("r1")])
+    .trim()
+    .split("\n");
+  const swapped = [...lastOnly];
+  swapped[3] = JSON.stringify({ ...JSON.parse(lastOnly[3]), artifactId: 999 });
+  assert.notEqual(
+    parseLedger(`${swapped.join("\n")}\n`, now).head,
+    parseLedger(`${lastOnly.join("\n")}\n`, now).head,
+  );
+});
+
+test(
+  "handoff: a stale writer's conflicting registration is rejected by Git and refused after reset",
+  { skip: hasGit() ? false : "git not available" },
+  () => {
+    const root = tempDir();
+    const emptyConfig = join(root, "empty.gitconfig");
+    writeFileSync(emptyConfig, "");
+    const env = {
+      ...process.env,
+      GIT_CONFIG_GLOBAL: emptyConfig,
+      GIT_CONFIG_NOSYSTEM: "1",
+      GIT_TERMINAL_PROMPT: "0",
+    };
+    const git = (cwd, ...args) =>
+      execFileSync(
+        "git",
+        [
+          "-c",
+          "user.name=Ledger Test",
+          "-c",
+          "user.email=ledger-test@example.invalid",
+          "-c",
+          "commit.gpgsign=false",
+          "-c",
+          "core.autocrlf=false",
+          ...args,
+        ],
+        { cwd, env, encoding: "utf8", stdio: "pipe" },
+      );
+    const BRANCH = "tech-brief-ledger";
+    const FILE = "tech-brief-ledger.jsonl";
+    git(root, "init", "--bare", "remote.git");
+    git(root, "clone", "remote.git", "a");
+    const a = join(root, "a");
+    git(a, "checkout", "-b", BRANCH);
+    initLedger(join(a, FILE), { at: T("2026-09-20T00:00:00.000Z") });
+    reserveAt(join(a, FILE), "r1", "2026-10-17", "2026-10-18T00:17:00.000Z");
+    git(a, "add", FILE);
+    git(a, "commit", "-m", "init and reserve");
+    git(a, "push", "origin", BRANCH);
+    git(root, "clone", "--branch", BRANCH, "remote.git", "b");
+    const b = join(root, "b");
+    register(
+      join(a, FILE),
+      "r1",
+      okReport(),
+      handoffOf(),
+      "2026-10-18T00:30:00.000Z",
+    );
+    git(a, "commit", "-am", "settle r1 with artifact 4100000001");
+    git(a, "push", "origin", BRANCH);
+    register(
+      join(b, FILE),
+      "r1",
+      okReport(),
+      handoffOf({ artifactId: 4100000009 }),
+      "2026-10-18T00:31:00.000Z",
+    );
+    git(b, "commit", "-am", "settle r1 with artifact 4100000009");
+    assert.throws(
+      () => git(b, "push", "origin", BRANCH),
+      /rejected|fetch first|non-fast-forward/,
+    );
+    git(b, "fetch", "origin");
+    git(b, "reset", "--hard", `origin/${BRANCH}`);
+    assert.equal(
+      codeOf(() =>
+        register(
+          join(b, FILE),
+          "r1",
+          okReport(),
+          handoffOf({ artifactId: 4100000009 }),
+          "2026-10-18T00:32:00.000Z",
+        ),
+      ),
+      "HANDOFF_CONFLICT",
+    );
+    assert.equal(
+      register(
+        join(b, FILE),
+        "r1",
+        okReport(),
+        handoffOf(),
+        "2026-10-18T00:32:00.000Z",
+      ).appended,
+      false,
+    );
+    assert.equal(
+      findHandoff(stateOf(join(b, FILE)), "2026-10-17").artifactId,
+      4100000001,
+    );
+  },
+);
+
+test("settlement summary: six validated fields, no content, and the same settlement as the full report", () => {
+  const full = reportFor("2026-10-17", "2026-10-18T00:20:00.000Z", 0.191048);
+  const summary = settlementSummary(full);
+  assert.deepEqual(Object.keys(summary).sort(), [
+    "budget",
+    "edition",
+    "finishedAt",
+    "runId",
+    "startedAt",
+    "status",
+  ]);
+  assert.deepEqual(summary.budget, { runTotalCountedUsd: 0.191048 });
+  const serialized = JSON.stringify(summary);
+  for (const leak of ["VERBATIM", "headline", "FAKE-CREDENTIAL", "candidates"])
+    assert.ok(!serialized.includes(leak), leak);
+  for (const [name, change] of [
+    ["runId", { runId: "run-XYZ" }],
+    ["status", { status: "done" }],
+    ["edition", { edition: "2026-10-18" }],
+    ["times", { startedAt: "yesterday" }],
+    ["cost", { budget: { runTotalCountedUsd: "0.19" } }],
+    ["negative cost", { budget: { runTotalCountedUsd: -1 } }],
+  ])
+    assert.equal(
+      codeOf(() => settlementSummary({ ...full, ...change })),
+      "REPORT_MISMATCH",
+      name,
+    );
+  assert.equal(
+    codeOf(() => settlementSummary(null)),
+    "REPORT_MISMATCH",
+  );
+  const viaFull = fresh();
+  const viaSummary = fresh();
+  for (const path of [viaFull, viaSummary])
+    reserveAt(path, "r1", "2026-10-17", "2026-10-18T00:17:00.000Z");
+  settleFromReport(viaFull, {
+    id: "r1",
+    report: full,
+    at: T("2026-10-18T00:30:00.000Z"),
+  });
+  settleFromReport(viaSummary, {
+    id: "r1",
+    report: summary,
+    at: T("2026-10-18T00:30:00.000Z"),
+  });
+  assert.equal(text(viaFull), text(viaSummary));
+});
+
+test("CLI: summary, settle with a handoff, and handoff lookup; partial or manual handoffs are refused", () => {
+  const dir = tempDir();
+  const path = join(dir, "tech-brief-ledger.jsonl");
+  const cli = (...args) => {
+    try {
+      return {
+        status: 0,
+        json: JSON.parse(
+          execFileSync(process.execPath, [CLI, ...args], { encoding: "utf8" }),
+        ),
+      };
+    } catch (error) {
+      return { status: error.status, json: JSON.parse(error.stdout) };
+    }
+  };
+  const at = (now) => ["--ledger", path, "--now", now];
+  const reportPath = join(dir, "report.json");
+  writeFileSync(
+    reportPath,
+    JSON.stringify(reportFor("2026-10-17", "2026-10-18T00:20:00.000Z", 0.19)),
+  );
+  const summary = cli("summary", "--report", reportPath);
+  assert.equal(summary.status, 0);
+  assert.equal(summary.json.summary.runId, "run-0aabd72a");
+  assert.ok(!JSON.stringify(summary.json).includes("VERBATIM"));
+  const summaryPath = join(dir, "summary.json");
+  writeFileSync(summaryPath, JSON.stringify(summary.json.summary));
+  assert.equal(cli("summary", "--report", join(dir, "missing.json")).status, 4);
+
+  cli("init", ...at("2026-09-20T00:00:00.000Z"));
+  cli(
+    "reserve",
+    ...at("2026-10-18T00:17:00.000Z"),
+    "--id",
+    "gh-100-1",
+    "--edition",
+    "2026-10-17",
+    "--kind",
+    "scheduled",
+  );
+  const handoffArgs = [
+    "--workflow-run-id",
+    "100",
+    "--run-attempt",
+    "1",
+    "--artifact-id",
+    "500",
+    "--bundle-digest",
+    DIGEST_A,
+  ];
+  assert.equal(
+    cli(
+      "settle",
+      ...at("2026-10-18T00:30:00.000Z"),
+      "--id",
+      "gh-100-1",
+      "--report",
+      summaryPath,
+      "--workflow-run-id",
+      "100",
+    ).status,
+    1,
+  );
+  assert.equal(
+    cli(
+      "settle",
+      ...at("2026-10-18T00:30:00.000Z"),
+      "--id",
+      "gh-100-1",
+      "--manual",
+      "--reason",
+      "crash-unknown",
+      ...handoffArgs,
+    ).status,
+    1,
+  );
+  const bad = cli(
+    "settle",
+    ...at("2026-10-18T00:30:00.000Z"),
+    "--id",
+    "gh-100-1",
+    "--report",
+    summaryPath,
+    ...handoffArgs.map((a) => (a === "500" ? "50x" : a)),
+  );
+  assert.deepEqual([bad.status, bad.json.code], [4, "INVALID_INPUT"]);
+  const settled = cli(
+    "settle",
+    ...at("2026-10-18T00:30:00.000Z"),
+    "--id",
+    "gh-100-1",
+    "--report",
+    summaryPath,
+    ...handoffArgs,
+  );
+  assert.equal(settled.status, 0);
+  assert.deepEqual(
+    settled.json.records.map((r) => r.type),
+    ["settle", "handoff"],
+  );
+  const found = cli(
+    "handoff",
+    ...at("2026-10-18T00:40:00.000Z"),
+    "--edition",
+    "2026-10-17",
+  );
+  assert.deepEqual(
+    [found.json.handoff.artifactId, found.json.handoff.researchRunId],
+    [500, "run-0aabd72a"],
+  );
+  assert.deepEqual(
+    (({ status, json }) => [status, json.code])(
+      cli(
+        "handoff",
+        ...at("2026-10-18T00:40:00.000Z"),
+        "--edition",
+        "2026-10-24",
+      ),
+    ),
+    [4, "NOT_FOUND"],
+  );
 });
