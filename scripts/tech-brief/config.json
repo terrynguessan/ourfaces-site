@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "notes": "Phase 3 research configuration. Model IDs and prices were verified against the official OpenAI documentation on the date below; they are not verified against the API account until the paid capability probe. Budget values are software estimates computed from API usage data, not billing guarantees.",
+  "pricesVerifiedOn": "2026-10-18",
+  "priceSources": [
+    "https://developers.openai.com/api/docs/pricing",
+    "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+    "https://developers.openai.com/api/docs/models/gpt-6-luna"
+  ],
+  "apiBaseUrl": "https://api.openai.com/v1",
+  "serviceTier": "default",
+  "stages": {
+    "discovery": {
+      "model": "gpt-6-luna",
+      "reasoningEffort": "medium",
+      "maxOutputTokens": 12000,
+      "maxToolCalls": 5,
+      "searchContextSize": "medium",
+      "structuredOutputWithSearch": "auto"
+    },
+    "discoveryConversion": {
+      "model": "gpt-6-luna",
+      "reasoningEffort": "low",
+      "maxOutputTokens": 4000
+    },
+    "extraction": {
+      "model": "gpt-6-luna",
+      "reasoningEffort": "medium",
+      "maxOutputTokens": 4000
+    },
+    "verification": {
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "low",
+      "maxOutputTokens": 6000
+    },
+    "coreReextraction": {
+      "model": "gpt-6-luna",
+      "reasoningEffort": "medium",
+      "maxOutputTokens": 2000
+    },
+    "reverification": {
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "low",
+      "maxOutputTokens": 3000
+    },
+    "writing": {
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "medium",
+      "maxOutputTokens": 16000
+    },
+    "repair": {
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "low",
+      "maxOutputTokens": 8000
+    },
+    "review": {
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "low",
+      "maxOutputTokens": 6000
+    }
+  },
+  "prices": {
+    "webSearchPerCallUsd": 0.01,
+    "models": {
+      "gpt-6-luna": {
+        "inputPerMTokUsd": 0.1,
+        "cachedInputPerMTokUsd": 0.01,
+        "outputPerMTokUsd": 0.5
+      },
+      "gpt-6.1-sol": {
+        "inputPerMTokUsd": 2,
+        "cachedInputPerMTokUsd": 0.1,
+        "outputPerMTokUsd": 10
+      }
+    }
+  },
+  "budget": {
+    "perRunUsd": 0.75,
+    "monthlyUsd": 4,
+    "plannedProviderHardLimitUsd": 5
+  },
+  "estimates": {
+    "charsPerToken": 3,
+    "searchContentTokensPerItemWorstCase": 30000,
+    "extraToolActionsAllowance": 2
+  },
+  "estimatesNotes": "searchContentTokensPerItemWorstCase is about 3.5x the 7.9k-8.7k tokens measured per web search item in run-26e47111. extraToolActionsAllowance covers web search items beyond max_tool_calls (that run returned 6 items for a limit of 5; their action types were not recorded). Estimates bound each call before it is sent, and a call that exceeds its estimate stops the run; they are not a billing guarantee.",
+  "limits": {
+    "candidatesPerDiscoveryCall": 8,
+    "maxCandidatesToFetch": 12,
+    "maxCandidatesPerSite": 2,
+    "maxEvidenceChars": 20000,
+    "maxClaimsPerStory": 5,
+    "minVerifiedClaims": 2,
+    "maxCoreReextractions": 3,
+    "reviewRepairAttempts": 1,
+    "minStories": 3,
+    "maxStories": 5,
+    "minCategories": 2,
+    "retriesPerCall": 1,
+    "retriesPerRun": 2,
+    "requestTimeoutMs": 120000,
+    "corroborationSimilarity": 0.3
+  },
+  "discoveryGroups": [
+    ["emerging-technology", "applied-ai"],
+    ["development-practices", "tools-techniques"]
+  ]
+}

@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "mode": "denylist",
+  "status": "provisional",
+  "notes": "PROVISIONAL DRAFT - NOT APPROVED FOR PRODUCTION. The preferred, review and exclusion lists are proposals pending editorial review and must be approved before any automated publication. 'preferred' sources rank first (tier 1 = primary/official, tier 2 = established technical press). Unknown sources are allowed in denylist mode but rank last; switch mode to 'allowlist' to accept only 'preferred'. 'reviewRequired' sources are blocked from autonomous publication. A domain entry also matches its subdomains.",
+  "limits": {
+    "maxStoriesPerDomain": 1
+  },
+  "preferred": [
+    { "domain": "github.blog", "tier": 1, "kind": "vendor-engineering" },
+    {
+      "domain": "devblogs.microsoft.com",
+      "tier": 1,
+      "kind": "vendor-engineering"
+    },
+    {
+      "domain": "developers.googleblog.com",
+      "tier": 1,
+      "kind": "vendor-engineering"
+    },
+    { "domain": "blog.google", "tier": 1, "kind": "vendor" },
+    { "domain": "aws.amazon.com", "tier": 1, "kind": "vendor-engineering" },
+    { "domain": "engineering.fb.com", "tier": 1, "kind": "vendor-engineering" },
+    {
+      "domain": "blog.cloudflare.com",
+      "tier": 1,
+      "kind": "vendor-engineering"
+    },
+    { "domain": "openai.com", "tier": 1, "kind": "vendor" },
+    { "domain": "anthropic.com", "tier": 1, "kind": "vendor" },
+    { "domain": "deepmind.google", "tier": 1, "kind": "vendor-research" },
+    { "domain": "ai.meta.com", "tier": 1, "kind": "vendor-research" },
+    { "domain": "huggingface.co", "tier": 1, "kind": "vendor-engineering" },
+    { "domain": "nodejs.org", "tier": 1, "kind": "project" },
+    { "domain": "nextjs.org", "tier": 1, "kind": "project" },
+    { "domain": "react.dev", "tier": 1, "kind": "project" },
+    { "domain": "blog.rust-lang.org", "tier": 1, "kind": "project" },
+    { "domain": "go.dev", "tier": 1, "kind": "project" },
+    { "domain": "blog.python.org", "tier": 1, "kind": "project" },
+    { "domain": "kubernetes.io", "tier": 1, "kind": "project" },
+    { "domain": "web.dev", "tier": 1, "kind": "project" },
+    { "domain": "developer.chrome.com", "tier": 1, "kind": "project" },
+    { "domain": "hacks.mozilla.org", "tier": 1, "kind": "project" },
+    { "domain": "webkit.org", "tier": 1, "kind": "project" },
+    { "domain": "w3.org", "tier": 1, "kind": "standards" },
+    { "domain": "ietf.org", "tier": 1, "kind": "standards" },
+    { "domain": "nist.gov", "tier": 1, "kind": "government" },
+    { "domain": "cisa.gov", "tier": 1, "kind": "government" },
+    { "domain": "owasp.org", "tier": 1, "kind": "standards" },
+    { "domain": "cnil.fr", "tier": 1, "kind": "government" },
+    { "domain": "anssi.gouv.fr", "tier": 1, "kind": "government" },
+    { "domain": "lwn.net", "tier": 2, "kind": "press" },
+    { "domain": "infoq.com", "tier": 2, "kind": "press" },
+    { "domain": "thenewstack.io", "tier": 2, "kind": "press" },
+    { "domain": "arstechnica.com", "tier": 2, "kind": "press" },
+    { "domain": "theregister.com", "tier": 2, "kind": "press" },
+    { "domain": "technologyreview.com", "tier": 2, "kind": "press" },
+    { "domain": "spectrum.ieee.org", "tier": 2, "kind": "press" },
+    { "domain": "theverge.com", "tier": 2, "kind": "press" },
+    { "domain": "techcrunch.com", "tier": 2, "kind": "press" },
+    { "domain": "zdnet.com", "tier": 2, "kind": "press" },
+    { "domain": "lemondeinformatique.fr", "tier": 2, "kind": "press-fr" },
+    { "domain": "next.ink", "tier": 2, "kind": "press-fr" },
+    { "domain": "usine-digitale.fr", "tier": 2, "kind": "press-fr" }
+  ],
+  "reviewRequired": [
+    {
+      "domain": "medium.com",
+      "reason": "user-generated platform; authorship and accuracy vary"
+    },
+    {
+      "domain": "substack.com",
+      "reason": "personal newsletters; not edited publications"
+    },
+    { "domain": "dev.to", "reason": "user-generated platform" },
+    { "domain": "hashnode.dev", "reason": "user-generated platform" },
+    {
+      "domain": "arxiv.org",
+      "reason": "preprints are not peer-reviewed; claims need extra care"
+    },
+    {
+      "domain": "wikipedia.org",
+      "reason": "tertiary source; cite the primary source instead"
+    }
+  ],
+  "excluded": [
+    {
+      "domain": "prnewswire.com",
+      "reason": "press-release wire (promotional)"
+    },
+    {
+      "domain": "businesswire.com",
+      "reason": "press-release wire (promotional)"
+    },
+    {
+      "domain": "globenewswire.com",
+      "reason": "press-release wire (promotional)"
+    },
+    {
+      "domain": "accesswire.com",
+      "reason": "press-release wire (promotional)"
+    },
+    {
+      "domain": "einpresswire.com",
+      "reason": "press-release wire (promotional)"
+    },
+    { "domain": "prweb.com", "reason": "press-release wire (promotional)" },
+    { "domain": "newswire.com", "reason": "press-release wire (promotional)" },
+    { "domain": "openpr.com", "reason": "press-release wire (promotional)" },
+    {
+      "domain": "news.ycombinator.com",
+      "reason": "aggregator; link the original source"
+    },
+    { "domain": "reddit.com", "reason": "forum; not a source" },
+    { "domain": "x.com", "reason": "social media; not a source" },
+    { "domain": "twitter.com", "reason": "social media; not a source" },
+    { "domain": "facebook.com", "reason": "social media; not a source" },
+    { "domain": "linkedin.com", "reason": "social media; not a source" },
+    { "domain": "threads.net", "reason": "social media; not a source" },
+    { "domain": "bsky.app", "reason": "social media; not a source" },
+    { "domain": "youtube.com", "reason": "video; no article text to verify" },
+    { "domain": "tiktok.com", "reason": "video; no article text to verify" },
+    {
+      "domain": "news.google.com",
+      "reason": "aggregator; link the original source"
+    },
+    { "domain": "msn.com", "reason": "syndication; link the original source" },
+    {
+      "domain": "flipboard.com",
+      "reason": "aggregator; link the original source"
+    },
+    { "domain": "bit.ly", "reason": "URL shortener" },
+    { "domain": "t.co", "reason": "URL shortener" },
+    { "domain": "tinyurl.com", "reason": "URL shortener" },
+    { "domain": "goo.gl", "reason": "URL shortener" },
+    { "domain": "ow.ly", "reason": "URL shortener" },
+    { "domain": "buff.ly", "reason": "URL shortener" },
+    { "domain": "lnkd.in", "reason": "URL shortener" },
+    { "domain": "dlvr.it", "reason": "URL shortener" },
+    {
+      "domain": "wsj.com",
+      "reason": "paywall; article text cannot be verified"
+    },
+    {
+      "domain": "ft.com",
+      "reason": "paywall; article text cannot be verified"
+    },
+    {
+      "domain": "bloomberg.com",
+      "reason": "paywall; article text cannot be verified"
+    },
+    {
+      "domain": "theinformation.com",
+      "reason": "paywall; article text cannot be verified"
+    }
+  ]
+}

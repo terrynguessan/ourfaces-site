@@ -944,6 +944,74 @@ h3 {
   color: white;
 }
 
+/* Weekly Tech Brief edition: stories reuse the .brief-item card on the green
+   band. Labels are white because gold-light falls below 4.5:1 on the card tint. */
+.tech-brief-edition {
+  margin-top: 26px;
+}
+
+.tech-brief-edition-title {
+  margin: 0.225em 0 calc(14px + 0.225em);
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+
+.tech-brief-stories {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tech-brief-category {
+  display: block;
+  line-height: 1.4;
+  color: white;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.tech-brief-story h4 {
+  margin: 8px 0 0;
+  font-size: 20px;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.tech-brief-story h4,
+.tech-brief-story p {
+  overflow-wrap: anywhere;
+}
+
+.tech-brief-story p {
+  margin: 10px 0 0;
+}
+
+.tech-brief-label {
+  color: white;
+  font-weight: 800;
+}
+
+.tech-brief-source {
+  font-size: 14px;
+}
+
+.tech-brief-source time {
+  white-space: nowrap;
+}
+
+.tech-brief-source a {
+  color: white;
+  font-weight: 750;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
 .company-block {
   display: grid;
   grid-template-columns: 1fr 1fr;

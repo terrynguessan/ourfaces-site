@@ -4,6 +4,8 @@ import ContactCta from "@/components/ContactCta";
 import PageIdentityVisual from "@/components/PageIdentityVisual";
 import type { Locale } from "@/lib/i18n";
 import { localizedPath } from "@/lib/i18n";
+import type { TechBriefCategory } from "@/lib/techBrief";
+import { formatEditionDate, getLatestEdition } from "@/lib/techBrief";
 
 const copy = {
   en: {
@@ -47,6 +49,10 @@ const copy = {
     watchList: "On the Watch List",
     watchListCopy: "An emerging technology or trend worth monitoring.",
     briefComing: "Tech Brief coming soon",
+    briefEditionTitle: "This week’s brief",
+    briefStoriesLabel: "This week’s Tech Brief stories",
+    briefWhyItMatters: "Why it matters:",
+    briefSource: "Source:",
     learningKicker: "From learning to practice",
     learningTitle: "Learning should lead to better solutions.",
     learningCopy: "Following technology is most useful when it improves how problems are understood and how solutions are designed. OurFaces approaches learning with practical application in mind.",
@@ -95,6 +101,11 @@ const copy = {
     watchList: "À surveiller",
     watchListCopy: "Une technologie émergente ou une tendance qui mérite d’être suivie.",
     briefComing: "Tech Brief bientôt disponible",
+    briefEditionTitle: "Le brief de la semaine",
+    briefStoriesLabel: "Articles du Tech Brief de la semaine",
+    // Non-breaking spaces keep the colon from wrapping onto its own line.
+    briefWhyItMatters: "Pourquoi c’est important\u00a0:",
+    briefSource: "Source\u00a0:",
     learningKicker: "De l’apprentissage à la pratique",
     learningTitle: "L’apprentissage doit mener à de meilleures solutions.",
     learningCopy: "Suivre la technologie est surtout utile lorsqu’elle améliore la compréhension des problèmes et la conception des solutions. OurFaces aborde l’apprentissage en gardant à l’esprit son application pratique.",
@@ -104,8 +115,17 @@ const copy = {
   },
 } as const;
 
+// Story categories reuse the "What we cover" topic titles in each language.
+const categoryTitleKey = {
+  "emerging-technology": "emergingTitle",
+  "development-practices": "developmentTitle",
+  "tools-techniques": "toolsTitle",
+  "applied-ai": "aiTitle",
+} as const satisfies Record<TechBriefCategory, keyof (typeof copy)["en"]>;
+
 export default function InsightsPageContent({ locale }: { locale: Locale }) {
   const t = copy[locale];
+  const edition = getLatestEdition();
 
   return (
     <div lang={locale}>
@@ -163,9 +183,32 @@ export default function InsightsPageContent({ locale }: { locale: Locale }) {
             <div className="brief-item"><strong>{t.betterPractice}</strong><span>{t.betterPracticeCopy}</span></div>
             <div className="brief-item"><strong>{t.watchList}</strong><span>{t.watchListCopy}</span></div>
           </div>
-          <div className="inline-actions">
-            <span className="btn btn-light btn-disabled" aria-disabled="true">{t.briefComing}</span>
-          </div>
+          {edition ? (
+            <div className="tech-brief-edition" data-edition={edition.edition}>
+              <h3 className="tech-brief-edition-title">
+                {t.briefEditionTitle} · <time dateTime={edition.publishedOn}>{formatEditionDate(edition.publishedOn, locale)}</time>
+              </h3>
+              <ol className="tech-brief-stories" aria-label={t.briefStoriesLabel}>
+                {edition.stories.map((story) => (
+                  <li key={story.id} className="brief-item tech-brief-story">
+                    <span className="tech-brief-category">{t[categoryTitleKey[story.category]]}</span>
+                    <h4>{story[locale].headline}</h4>
+                    <p>{story[locale].summary}</p>
+                    <p><span className="tech-brief-label">{t.briefWhyItMatters}</span> {story[locale].whyItMatters}</p>
+                    <p className="tech-brief-source">
+                      {t.briefSource}{" "}
+                      <a href={story.url} rel="noopener noreferrer" lang={story.sourceHeadlineLang}>{story.sourceHeadline}</a>
+                      {" — "}{story.publisher}, <time dateTime={story.sourcePublishedOn}>{formatEditionDate(story.sourcePublishedOn, locale)}</time>
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ) : (
+            <div className="inline-actions">
+              <span className="btn btn-light btn-disabled" aria-disabled="true">{t.briefComing}</span>
+            </div>
+          )}
         </div>
       </section>
 

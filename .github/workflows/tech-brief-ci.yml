@@ -1,0 +1,42 @@
+# Tech Brief CI: offline tests and formatting for Tech Brief changes.
+# No secrets, no network beyond installing locked dependencies, read-only token.
+
+name: Tech Brief CI
+
+on:
+  pull_request:
+    paths:
+      - "scripts/tech-brief/**"
+      - "src/lib/techBrief.ts"
+      - "src/content/tech-brief/**"
+      - ".github/workflows/tech-brief-*.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/tech-brief/**"
+      - "src/lib/techBrief.ts"
+      - "src/content/tech-brief/**"
+      - ".github/workflows/tech-brief-*.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tech-brief-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - run: npm ci --ignore-scripts
+      - run: npx --no-install prettier --check scripts/tech-brief .github/workflows
+      - run: node --test --test-concurrency=1 "scripts/tech-brief/test/*.test.mjs"
+      - run: node scripts/tech-brief/publish.mjs check

@@ -1,0 +1,66 @@
+{
+  "id": "resp_fixture_discovery",
+  "object": "response",
+  "status": "completed",
+  "incomplete_details": null,
+  "model": "gpt-6-luna",
+  "output": [
+    {
+      "id": "ws_fixture_1",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "type checker incremental mode release October 2026",
+        "sources": [
+          {
+            "type": "url",
+            "url": "https://news.alpha-devtools.com/releases/v5-0"
+          },
+          {
+            "type": "url",
+            "url": "https://www.gamma-journal.org/articles/2026/10/test-flakiness-study"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ws_fixture_2",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "open_page",
+        "url": "https://news.alpha-devtools.com/releases/v5-0"
+      }
+    },
+    { "id": "rs_fixture_1", "type": "reasoning", "summary": [] },
+    {
+      "id": "msg_fixture_1",
+      "type": "message",
+      "role": "assistant",
+      "status": "completed",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "{\"candidates\":[{\"url\":\"https://news.alpha-devtools.com/releases/v5-0\",\"headline\":\"Version 5.0 brings incremental type checking to the command line\",\"publisher\":\"Alpha DevTools\",\"publishedDate\":\"2026-10-22\",\"category\":\"tools-techniques\",\"practicalValue\":\"Faster repeat checks for large codebases\"}]}",
+          "annotations": [
+            {
+              "type": "url_citation",
+              "url": "https://news.alpha-devtools.com/releases/v5-0",
+              "title": "Version 5.0 brings incremental type checking to the command line",
+              "start_index": 0,
+              "end_index": 40
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "usage": {
+    "input_tokens": 45000,
+    "input_tokens_details": { "cached_tokens": 5000 },
+    "output_tokens": 6000,
+    "output_tokens_details": { "reasoning_tokens": 4000 },
+    "total_tokens": 51000
+  }
+}

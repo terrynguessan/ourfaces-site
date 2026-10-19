@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+  <meta charset="utf-8">
+  <title>Version 5.0 brings incremental type checking to the command line | Example DevTools Blog</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta property="og:title" content="Version 5.0 brings incremental type checking to the command line">
+  <meta property="og:site_name" content="Example DevTools">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://devtools.fixture.ourfaces.net/releases/v5-0">
+  <meta property="article:published_time" content="2026-10-22T09:30:00-04:00">
+  <meta property="article:modified_time" content="2026-10-22T15:10:00-04:00">
+  <meta name="author" content="Release Team">
+  <link rel="canonical" href="https://devtools.fixture.ourfaces.net/releases/v5-0">
+  <link rel="stylesheet" href="/assets/site.css">
+  <style>.promo { color: red; } body::after { content: "styles are not text"; }</style>
+  <script>window.analytics = { track: function () { document.write("<p>tracking</p>"); } };</script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": "Version 5.0 brings incremental type checking to the command line",
+    "datePublished": "2026-10-22T09:30:00-04:00",
+    "dateModified": "2026-10-22T15:10:00-04:00",
+    "author": { "@type": "Organization", "name": "Release Team" },
+    "publisher": { "@type": "Organization", "name": "Example DevTools" }
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <nav><a href="/">Home</a> <a href="/blog">Blog</a> <a href="/docs">Docs</a></nav>
+  </header>
+  <main>
+    <article>
+      <header>
+        <h1>Version 5.0 brings incremental type checking to the command line</h1>
+        <p class="byline">By the Release Team · <time datetime="2026-10-22T09:30:00-04:00">October 22, 2026</time></p>
+      </header>
+      <p>Today we are releasing version 5.0 of the command-line type checker. The headline feature is incremental mode, which stores the results of each run in a local cache and reuses them the next time you check the project.</p>
+      <p>When incremental mode is enabled, the checker records a fingerprint for every source file and for the declarations it exports. On the next run, only files whose fingerprint changed, together with the files that depend on them, are checked again. Everything else is read from the cache.</p>
+      <p>In our benchmarks on three large monorepos, repeat checks after a small edit finished up to four times faster than in version 4.9. A full check from an empty cache takes about the same time as before, because the cache has to be built first.</p>
+      <p>Incremental mode is off by default in this release. You can turn it on with the <code>--incremental</code> flag or by setting <code>"incremental": true</code> in the configuration file. The cache is written to a <code>.typecache</code> directory, which should be excluded from version control.</p>
+      <h2>Compatibility</h2>
+      <p>Version 5.0 requires Node.js 20 or later. Projects that use custom plugins must update to the version 5 plugin API; the previous API is still available behind a compatibility flag and will be removed in a future major release.</p>
+      <ul>
+        <li>The <code>--watch</code> mode now uses the same cache as incremental mode.</li>
+        <li>Error messages include the path of the configuration file that enabled a rule.</li>
+      </ul>
+      <aside class="related"><h3>Related posts</h3><p>Version 4.9 release notes, published in July.</p></aside>
+      <figure><img src="/img/bench.png" alt="Benchmark chart"><figcaption>Repeat-check times for three monorepos.</figcaption></figure>
+      <p>As always, we welcome feedback in the issue tracker. Thank you to everyone who tested the release candidates.</p>
+    </article>
+  </main>
+  <footer><p>© 2026 Example DevTools. All rights reserved.</p><form><input name="email"><button>Subscribe</button></form></footer>
+  <script src="/assets/app.js"></script>
+</body>
+</html>

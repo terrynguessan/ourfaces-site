@@ -1,0 +1,431 @@
+{
+  "source": "run-7eaa279d report (dry run, 2026-10-17): claims, quotes and reviewer output copied verbatim",
+  "note": "The run did not record the written drafts. Sentences the reviewer flagged are copied from the report; the fields listed in each story's 'reconstructed' were written for these tests. 'diagnosis' is the offline assessment of each flagged sentence against the verified claims.",
+  "stories": [
+    {
+      "key": "k4",
+      "url": "https://www.anthropic.com/news/an-update-on-independent-evaluators",
+      "publisher": "Anthropic",
+      "category": "emerging-technology",
+      "selfReportedBy": "Anthropic",
+      "editorial": {
+        "contentType": "engineering-report",
+        "technicalSubstance": "substantial",
+        "vendorSelfReport": true,
+        "attributedTo": "Anthropic"
+      },
+      "claims": [
+        {
+          "id": "c1",
+          "text": "Anthropic announced that it had started giving a METR team employee-like access.",
+          "quote": "Today, we’re announcing that we’ve started to give employee-like access to a team from METR, a nonprofit that evaluates frontier AI models.",
+          "paragraphId": "p1",
+          "verdict": "entailed"
+        },
+        {
+          "id": "c2",
+          "text": "Anthropic onboarded six METR employees and gave them company hardware, office space, and access to internal tools and systems roughly comparable to those available to its risk assessment teams.",
+          "quote": "We’ve onboarded six METR employees with company hardware, office space, and access to internal tools and systems that are roughly on par with what our own risk assessment teams have access to.",
+          "paragraphId": "p12",
+          "verdict": "entailed"
+        },
+        {
+          "id": "c3",
+          "text": "METR can publish its analysis, and Anthropic cannot veto publication but can require redactions for information in predefined categories.",
+          "quote": "METR will publish its analysis of our risk levels, incidents, or practices. Anthropic can’t veto publication, but we can require them to redact information if it falls into predefined categories like the ones above.",
+          "paragraphId": "p13",
+          "verdict": "entailed"
+        },
+        {
+          "id": "c4",
+          "text": "SecureBio is reviewing the chemical and biological weapons chapter of Anthropic’s August Risk Report after completing and publishing a pilot review of its previous risk report.",
+          "quote": "SecureBio is in the process of reviewing the chemical and biological weapons chapter of our August Risk Report, after completing and publishing a pilot review of our previous risk report.",
+          "paragraphId": "p20",
+          "verdict": "entailed"
+        }
+      ],
+      "review": {
+        "key": "k4",
+        "faithful": false,
+        "unsupportedSentences": [
+          "METR can publish analyses without Anthropic’s veto, subject to predefined redaction categories.",
+          "SecureBio is reviewing the chemical and biological weapons chapter of Anthropic’s August Risk Report after publishing a pilot review of its previous report.",
+          "METR peut publier ses analyses sans veto d’Anthropic, sous réserve d’occultations dans des catégories prédéfinies.",
+          "SecureBio examine le chapitre consacré aux armes chimiques et biologiques du rapport sur les risques d’août d’Anthropic, après avoir publié un examen pilote du rapport précédent."
+        ],
+        "translationIssues": [],
+        "copyrightConcern": false
+      },
+      "diagnosis": [
+        {
+          "sentence": "METR can publish analyses without Anthropic’s veto, subject to predefined redaction categories.",
+          "verdict": "false-positive",
+          "claims": ["c3"],
+          "note": "Faithful condensation of c3; repeats no attribution."
+        },
+        {
+          "sentence": "SecureBio is reviewing the chemical and biological weapons chapter of Anthropic’s August Risk Report after publishing a pilot review of its previous report.",
+          "verdict": "false-positive",
+          "claims": ["c4"],
+          "note": "Faithful condensation of c4 (omits 'completing'); repeats no attribution."
+        },
+        {
+          "sentence": "METR peut publier ses analyses sans veto d’Anthropic, sous réserve d’occultations dans des catégories prédéfinies.",
+          "verdict": "false-positive",
+          "claims": ["c3"],
+          "note": "Faithful French rendering of c3 ('occultations' = redactions)."
+        },
+        {
+          "sentence": "SecureBio examine le chapitre consacré aux armes chimiques et biologiques du rapport sur les risques d’août d’Anthropic, après avoir publié un examen pilote du rapport précédent.",
+          "verdict": "false-positive",
+          "claims": ["c4"],
+          "note": "Faithful French rendering of c4."
+        }
+      ],
+      "draft": {
+        "en": {
+          "headline": "Anthropic gives METR evaluators employee-like access",
+          "summary": "Anthropic says it has given six METR employees employee-like access to company hardware, office space and internal tools. METR can publish analyses without Anthropic’s veto, subject to predefined redaction categories. SecureBio is reviewing the chemical and biological weapons chapter of Anthropic’s August Risk Report after publishing a pilot review of its previous report.",
+          "whyItMatters": "Outside evaluators get access roughly comparable to that of Anthropic’s own risk assessment teams, according to the company."
+        },
+        "fr": {
+          "headline": "Anthropic ouvre un accès de type salarié à des évaluateurs de METR",
+          "summary": "Selon Anthropic, six employés de METR ont reçu un accès comparable à celui de ses salariés : matériel de l’entreprise, bureaux et outils internes. METR peut publier ses analyses sans veto d’Anthropic, sous réserve d’occultations dans des catégories prédéfinies. SecureBio examine le chapitre consacré aux armes chimiques et biologiques du rapport sur les risques d’août d’Anthropic, après avoir publié un examen pilote du rapport précédent.",
+          "whyItMatters": "D’après Anthropic, ces évaluateurs externes disposent d’un accès à peu près équivalent à celui de ses propres équipes d’évaluation des risques."
+        }
+      },
+      "reconstructed": [
+        "en.headline",
+        "en.summary[0]",
+        "en.whyItMatters",
+        "fr.headline",
+        "fr.summary[0]",
+        "fr.whyItMatters"
+      ]
+    },
+    {
+      "key": "k5",
+      "url": "https://github.blog/changelog/2026-10-14-github-actions-workflow-lockfiles-in-public-preview/",
+      "publisher": "The GitHub Blog",
+      "category": "tools-techniques",
+      "selfReportedBy": "GitHub",
+      "editorial": {
+        "contentType": "product-announcement",
+        "technicalSubstance": "substantial",
+        "vendorSelfReport": true,
+        "attributedTo": "GitHub"
+      },
+      "claims": [
+        {
+          "id": "c1",
+          "text": "GitHub Actions workflow dependency lockfiles entered public preview for GitHub Enterprise Cloud, GitHub Enterprise Cloud with data residency, Team, and Free plans.",
+          "quote": "GitHub Actions workflow dependency lockfiles are now in public preview for GitHub Enterprise Cloud, GitHub Enterprise Cloud with data residency, Team, and Free plans.",
+          "paragraphId": "p1",
+          "verdict": "entailed"
+        },
+        {
+          "id": "c2",
+          "text": "GitHub Actions requires every dependency of an onboarded workflow to be in the lockfile and uses its recorded commit, even if a tag or branch moves.",
+          "quote": "GitHub Actions requires each dependency of an onboarded workflow to be in the lockfile and uses its recorded commit, even if a tag or branch moves.",
+          "paragraphId": "p7",
+          "verdict": "entailed"
+        },
+        {
+          "id": "c3",
+          "text": "Enterprise, organization, and repository administrators can require workflows to use lockfiles at their respective levels.",
+          "quote": "Enterprise, organization, and repository administrators can require workflows to use lockfiles across their enterprise, organization, or repository.",
+          "paragraphId": "p9",
+          "verdict": "entailed"
+        },
+        {
+          "id": "c4",
+          "text": "When Dependabot opens a version update for an action in an onboarded workflow, it regenerates the matching lockfile entry in the same pull request.",
+          "quote": "When it opens a version update for an action in a workflow that is already onboarded, it also regenerates the matching lockfile entry in the same pull request",
+          "paragraphId": "p11",
+          "verdict": "partial"
+        }
+      ],
+      "review": {
+        "key": "k5",
+        "faithful": false,
+        "unsupportedSentences": [
+          "Enabled workflows must list every dependency and use its recorded commit, even when tags or branches move.",
+          "Administrators can require lockfiles at enterprise, organization or repository level.",
+          "Teams can keep workflow dependencies tied to recorded commits rather than changing tags or branches, with administrators enforcing lockfile use at their respective levels.",
+          "Les workflows concernés doivent y répertorier toutes leurs dépendances et utiliser les commits enregistrés, même si les tags ou branches changent.",
+          "Les administrateurs peuvent imposer ces fichiers au niveau de l’entreprise, de l’organisation ou du dépôt.",
+          "Les équipes peuvent fixer les dépendances des workflows à des commits enregistrés plutôt qu’à des tags ou branches variables.",
+          "Les administrateurs peuvent rendre ces fichiers obligatoires à leur niveau."
+        ],
+        "translationIssues": [],
+        "copyrightConcern": false
+      },
+      "diagnosis": [
+        {
+          "sentence": "Enabled workflows must list every dependency and use its recorded commit, even when tags or branches move.",
+          "verdict": "borderline",
+          "claims": ["c2"],
+          "note": "Moves the requirement from GitHub Actions and the lockfile to the workflow ('workflows must list'); 'enabled' for 'onboarded'."
+        },
+        {
+          "sentence": "Administrators can require lockfiles at enterprise, organization or repository level.",
+          "verdict": "false-positive",
+          "claims": ["c3"],
+          "note": "Faithful condensation of c3."
+        },
+        {
+          "sentence": "Teams can keep workflow dependencies tied to recorded commits rather than changing tags or branches, with administrators enforcing lockfile use at their respective levels.",
+          "verdict": "borderline",
+          "claims": ["c2", "c3"],
+          "note": "'administrators enforcing' states as fact what c3 says administrators can require (can versus do)."
+        },
+        {
+          "sentence": "Les workflows concernés doivent y répertorier toutes leurs dépendances et utiliser les commits enregistrés, même si les tags ou branches changent.",
+          "verdict": "borderline",
+          "claims": ["c2"],
+          "note": "Same actor shift as the English: the workflows, not the lockfile, 'répertorient' the dependencies."
+        },
+        {
+          "sentence": "Les administrateurs peuvent imposer ces fichiers au niveau de l’entreprise, de l’organisation ou du dépôt.",
+          "verdict": "false-positive",
+          "claims": ["c3"],
+          "note": "Faithful French rendering of c3."
+        },
+        {
+          "sentence": "Les équipes peuvent fixer les dépendances des workflows à des commits enregistrés plutôt qu’à des tags ou branches variables.",
+          "verdict": "false-positive",
+          "claims": ["c2"],
+          "note": "Faithful French rendering of c2."
+        },
+        {
+          "sentence": "Les administrateurs peuvent rendre ces fichiers obligatoires à leur niveau.",
+          "verdict": "false-positive",
+          "claims": ["c3"],
+          "note": "Faithful French rendering of c3 ('peuvent rendre obligatoires')."
+        }
+      ],
+      "draft": {
+        "en": {
+          "headline": "GitHub Actions workflow lockfiles enter public preview",
+          "summary": "GitHub says workflow dependency lockfiles for GitHub Actions are in public preview on Enterprise Cloud, Team and Free plans. Enabled workflows must list every dependency and use its recorded commit, even when tags or branches move. Administrators can require lockfiles at enterprise, organization or repository level.",
+          "whyItMatters": "Teams can keep workflow dependencies tied to recorded commits rather than changing tags or branches, with administrators enforcing lockfile use at their respective levels."
+        },
+        "fr": {
+          "headline": "Les lockfiles de workflows GitHub Actions passent en préversion publique",
+          "summary": "Selon GitHub, les lockfiles (fichiers de verrouillage) des dépendances de workflows GitHub Actions sont en préversion publique pour les offres Enterprise Cloud, Team et Free. Les workflows concernés doivent y répertorier toutes leurs dépendances et utiliser les commits enregistrés, même si les tags ou branches changent. Les administrateurs peuvent imposer ces fichiers au niveau de l’entreprise, de l’organisation ou du dépôt.",
+          "whyItMatters": "Les équipes peuvent fixer les dépendances des workflows à des commits enregistrés plutôt qu’à des tags ou branches variables. Les administrateurs peuvent rendre ces fichiers obligatoires à leur niveau."
+        }
+      },
+      "reconstructed": [
+        "en.headline",
+        "en.summary[0]",
+        "fr.headline",
+        "fr.summary[0]"
+      ]
+    },
+    {
+      "key": "k6",
+      "url": "https://developer.wordpress.org/news/2026/10/whats-new-for-developers-october-2026/",
+      "publisher": "WordPress Developer Blog",
+      "category": "tools-techniques",
+      "selfReportedBy": "WordPress Developer Blog",
+      "editorial": {
+        "contentType": "engineering-report",
+        "technicalSubstance": "substantial",
+        "vendorSelfReport": true,
+        "attributedTo": "WordPress Developer Blog"
+      },
+      "claims": [
+        {
+          "id": "c1",
+          "text": "Around 140 pull requests switched on existing block supports for Core blocks that lacked them.",
+          "quote": "Around 140 pull requests switched on existing block supports for Core blocks that lacked them.",
+          "paragraphId": "p31",
+          "verdict": "entailed"
+        },
+        {
+          "id": "c2",
+          "text": "A rebuild of WordPress’s wp_kses() HTML sanitizer is being done on top of the HTML API.",
+          "quote": "The wp_kses() progress report lays out a rebuild of WordPress’s HTML sanitizer on top of the HTML API",
+          "paragraphId": "p15",
+          "verdict": "partial"
+        },
+        {
+          "id": "c3",
+          "text": "Gutenberg 24.1 made viewport state helpers public, allowing blocks to offer per-breakpoint settings.",
+          "quote": "Gutenberg 24.1 made those viewport state helpers public, so your blocks can now offer per-breakpoint settings the same way Core blocks do.",
+          "paragraphId": "p20",
+          "verdict": "entailed"
+        },
+        {
+          "id": "c4",
+          "text": "The WordPress Plugins team introduced an automated security review for plugin releases.",
+          "quote": "The Plugins team introduced an automated security review for plugin releases.",
+          "paragraphId": "p28",
+          "verdict": "partial"
+        },
+        {
+          "id": "c5",
+          "text": "The Playground Dev Tools Dock adds a terminal for running PHP and WP-CLI commands against the live site.",
+          "quote": "The Dev Tools Dock adds a terminal that runs PHP and WP-CLI commands against the live site.",
+          "paragraphId": "p55",
+          "verdict": "partial"
+        }
+      ],
+      "review": {
+        "key": "k6",
+        "faithful": false,
+        "unsupportedSentences": [
+          "WordPress expands block supports and exposes viewport helpers",
+          "Block developers can use public viewport state helpers for per-breakpoint settings, while more Core blocks have existing block supports enabled.",
+          "WordPress étend les fonctionnalités des blocs et expose les utilitaires liés à la fenêtre d’affichage",
+          "Les développeurs de blocs peuvent utiliser ces utilitaires publics pour proposer des réglages par point de rupture.",
+          "Davantage de blocs du cœur bénéficient aussi de fonctionnalités de prise en charge existantes."
+        ],
+        "translationIssues": [
+          "« Fonctionnalités de prise en charge existantes » is an unnatural and unclear rendering of the technical term “block supports.” Retaining “block supports” with a brief French explanation would convey the meaning more clearly."
+        ],
+        "copyrightConcern": false
+      },
+      "diagnosis": [
+        {
+          "sentence": "WordPress expands block supports and exposes viewport helpers",
+          "verdict": "legitimate",
+          "claims": ["c1", "c3"],
+          "note": "'expands block supports' reads as new or broader supports; c1 says existing supports were switched on for more Core blocks."
+        },
+        {
+          "sentence": "Block developers can use public viewport state helpers for per-breakpoint settings, while more Core blocks have existing block supports enabled.",
+          "verdict": "false-positive",
+          "claims": ["c1", "c3"],
+          "note": "Faithful combination of c3 and c1, keeping 'existing'."
+        },
+        {
+          "sentence": "WordPress étend les fonctionnalités des blocs et expose les utilitaires liés à la fenêtre d’affichage",
+          "verdict": "legitimate",
+          "claims": ["c1", "c3"],
+          "note": "Same overstatement in French, and 'fonctionnalités des blocs' is vaguer than block supports."
+        },
+        {
+          "sentence": "Les développeurs de blocs peuvent utiliser ces utilitaires publics pour proposer des réglages par point de rupture.",
+          "verdict": "false-positive",
+          "claims": ["c3"],
+          "note": "Faithful French rendering of c3."
+        },
+        {
+          "sentence": "Davantage de blocs du cœur bénéficient aussi de fonctionnalités de prise en charge existantes.",
+          "verdict": "legitimate",
+          "claims": ["c1"],
+          "note": "Unclear rendering of the WordPress term 'block supports' (also the reviewer's translation issue)."
+        }
+      ],
+      "draft": {
+        "en": {
+          "headline": "WordPress expands block supports and exposes viewport helpers",
+          "summary": "According to the WordPress Developer Blog, Gutenberg 24.1 made viewport state helpers public so blocks can offer per-breakpoint settings, and about 140 pull requests enabled existing block supports on Core blocks that did not have them.",
+          "whyItMatters": "Block developers can use public viewport state helpers for per-breakpoint settings, while more Core blocks have existing block supports enabled."
+        },
+        "fr": {
+          "headline": "WordPress étend les fonctionnalités des blocs et expose les utilitaires liés à la fenêtre d’affichage",
+          "summary": "Selon le WordPress Developer Blog, Gutenberg 24.1 a rendu publics les utilitaires d’état du viewport, ce qui permet aux blocs de proposer des réglages par point de rupture, et environ 140 pull requests ont activé des block supports existants sur des blocs du cœur qui en étaient dépourvus.",
+          "whyItMatters": "Les développeurs de blocs peuvent utiliser ces utilitaires publics pour proposer des réglages par point de rupture. Davantage de blocs du cœur bénéficient aussi de fonctionnalités de prise en charge existantes."
+        }
+      },
+      "reconstructed": ["en.summary[0]", "fr.summary[0]"]
+    },
+    {
+      "key": "k7",
+      "url": "https://canonical.com/blog/canonical-releases-ubuntu-26-10-stonking-stingray",
+      "publisher": "Canonical",
+      "category": "emerging-technology",
+      "selfReportedBy": "Canonical",
+      "editorial": {
+        "contentType": "product-announcement",
+        "technicalSubstance": "substantial",
+        "vendorSelfReport": true,
+        "attributedTo": "Canonical"
+      },
+      "claims": [
+        {
+          "id": "c1",
+          "text": "Canonical announced the release of Ubuntu 26.10, codenamed “Stonking Stingray.”",
+          "quote": "Today Canonical announced the release of Ubuntu 26.10, codenamed “Stonking Stingray,” available to download and install from ubuntu.com/download.",
+          "paragraphId": "p2",
+          "verdict": "entailed"
+        },
+        {
+          "id": "c2",
+          "text": "Myna is an opt-in feature in Ubuntu 26.10 for speech recognition with visual feedback.",
+          "quote": "Myna is an opt-in feature in Ubuntu 26.10, designed to provide speech recognition with clear visual feedback while you speak.",
+          "paragraphId": "p9",
+          "verdict": "entailed"
+        },
+        {
+          "id": "c3",
+          "text": "Ubuntu 26.10 uses Sequoia PGP instead of GnuPG to verify APT repository signatures.",
+          "quote": "Ubuntu 26.10 delivers post-quantum ready package signing, by replacing GnuPG with Sequoia PGP to verify APT repository signatures.",
+          "paragraphId": "p16",
+          "verdict": "entailed"
+        },
+        {
+          "id": "c4",
+          "text": "Ubuntu 26.10 adopts dbus-broker as its default D-Bus implementation.",
+          "quote": "Ubuntu 26.10 adopts dbus-broker as the default D-Bus implementation",
+          "paragraphId": "p13",
+          "verdict": "entailed"
+        }
+      ],
+      "review": {
+        "key": "k7",
+        "faithful": false,
+        "unsupportedSentences": [
+          "Ubuntu 26.10 changes APT verification and the default D-Bus implementation",
+          "For teams evaluating the release, the changes concern package repository signature verification, the default D-Bus implementation and optional speech recognition.",
+          "Ubuntu 26.10 change la vérification APT et l’implémentation D-Bus par défaut",
+          "Pour les équipes qui évaluent cette version, les changements concernent la vérification des signatures des dépôts de paquets, l’implémentation D-Bus par défaut et la reconnaissance vocale facultative."
+        ],
+        "translationIssues": [],
+        "copyrightConcern": false
+      },
+      "diagnosis": [
+        {
+          "sentence": "Ubuntu 26.10 changes APT verification and the default D-Bus implementation",
+          "verdict": "false-positive",
+          "claims": ["c3", "c4"],
+          "note": "Faithful: c3 (APT signature verification) and c4 (default D-Bus implementation)."
+        },
+        {
+          "sentence": "For teams evaluating the release, the changes concern package repository signature verification, the default D-Bus implementation and optional speech recognition.",
+          "verdict": "false-positive",
+          "claims": ["c2", "c3", "c4"],
+          "note": "Restates c3, c4 and c2 ('optional' = opt-in) for a named audience; adds nothing."
+        },
+        {
+          "sentence": "Ubuntu 26.10 change la vérification APT et l’implémentation D-Bus par défaut",
+          "verdict": "false-positive",
+          "claims": ["c3", "c4"],
+          "note": "Faithful French rendering of the headline."
+        },
+        {
+          "sentence": "Pour les équipes qui évaluent cette version, les changements concernent la vérification des signatures des dépôts de paquets, l’implémentation D-Bus par défaut et la reconnaissance vocale facultative.",
+          "verdict": "false-positive",
+          "claims": ["c2", "c3", "c4"],
+          "note": "Faithful French rendering."
+        }
+      ],
+      "draft": {
+        "en": {
+          "headline": "Ubuntu 26.10 changes APT verification and the default D-Bus implementation",
+          "summary": "Canonical announced Ubuntu 26.10, which uses Sequoia PGP instead of GnuPG to verify APT repository signatures, makes dbus-broker the default D-Bus implementation and adds Myna, an opt-in speech recognition feature with visual feedback.",
+          "whyItMatters": "For teams evaluating the release, the changes concern package repository signature verification, the default D-Bus implementation and optional speech recognition."
+        },
+        "fr": {
+          "headline": "Ubuntu 26.10 change la vérification APT et l’implémentation D-Bus par défaut",
+          "summary": "Canonical annonce Ubuntu 26.10, qui vérifie les signatures des dépôts APT avec Sequoia PGP au lieu de GnuPG, adopte dbus-broker comme implémentation D-Bus par défaut et ajoute Myna, une reconnaissance vocale facultative avec retour visuel.",
+          "whyItMatters": "Pour les équipes qui évaluent cette version, les changements concernent la vérification des signatures des dépôts de paquets, l’implémentation D-Bus par défaut et la reconnaissance vocale facultative."
+        }
+      },
+      "reconstructed": ["en.summary[0]", "fr.summary[0]"]
+    }
+  ]
+}

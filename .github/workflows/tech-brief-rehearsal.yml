@@ -1,0 +1,114 @@
+# Tech Brief rehearsal: a manual, cost-free test of the GitHub plumbing.
+# Stage "seal": seals a synthetic research result with the public rehearsal
+# key and uploads it as an artifact. Stage "verify" (with the completed seal
+# run's id): fetches that run's artifact and run-attempt records, verifies
+# provenance and the digest, decrypts and prepares a publication without
+# writing anything. No secrets, no ledger, no OpenAI calls, no commits.
+
+name: Tech Brief rehearsal
+
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "seal, then verify with the seal run's id"
+        required: true
+        type: choice
+        options: [seal, verify]
+        default: seal
+      source_run_id:
+        description: "verify only: id of the completed seal run"
+        required: false
+        default: ""
+      source_run_attempt:
+        description: "verify only: attempt number of the seal run"
+        required: false
+        default: "1"
+
+permissions: {}
+
+concurrency:
+  group: tech-brief-rehearsal
+  cancel-in-progress: false
+
+jobs:
+  seal:
+    if: inputs.stage == 'seal'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - id: seal
+        run: node scripts/tech-brief/rehearsal.mjs seal --out-dir "$RUNNER_TEMP/bundle"
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.seal.outputs.artifact_name }}
+          path: ${{ steps.seal.outputs.path }}
+          retention-days: 1
+          if-no-files-found: error
+          overwrite: false
+          compression-level: 0
+      - env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          BUNDLE_DIGEST: ${{ steps.seal.outputs.bundle_digest }}
+          EDITION: ${{ steps.seal.outputs.edition }}
+        run: node scripts/tech-brief/rehearsal.mjs handoff --out "$RUNNER_TEMP/handoff/handoff.json" --artifact-id "$ARTIFACT_ID" --bundle-digest "$BUNDLE_DIGEST" --edition "$EDITION"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tech-brief-rehearsal-handoff
+          path: ${{ runner.temp }}/handoff/handoff.json
+          retention-days: 1
+          if-no-files-found: error
+          overwrite: false
+
+  verify:
+    if: inputs.stage == 'verify'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: tech-brief-rehearsal-handoff
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/handoff
+      - id: handoff
+        run: node -e 'const h=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));require("fs").appendFileSync(process.env.GITHUB_OUTPUT,`artifact_id=${h.artifactId}\n`)' "$RUNNER_TEMP/handoff/handoff.json"
+      - name: Fetch the artifact and run-attempt records
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.handoff.outputs.artifact_id }}
+          RUN_ID: ${{ inputs.source_run_id }}
+          RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID" > "$RUNNER_TEMP/artifact.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/attempts/$RUN_ATTEMPT" > "$RUNNER_TEMP/run.json"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ steps.handoff.outputs.artifact_id }}
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/bundle
+          digest-mismatch: error
+      - run: |
+          node scripts/tech-brief/rehearsal.mjs verify --handoff "$RUNNER_TEMP/handoff/handoff.json" \
+            --artifact-json "$RUNNER_TEMP/artifact.json" --run-json "$RUNNER_TEMP/run.json" \
+            --bundle-dir "$RUNNER_TEMP/bundle" --content-dir src/content/tech-brief --repo-dir . --branch "$GITHUB_REF_NAME"
