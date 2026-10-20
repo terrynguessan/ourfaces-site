@@ -281,14 +281,51 @@ test("checkDuplicates compares against earlier editions", async () => {
 
 // --- source policy -----------------------------------------------------------------------
 
-test("the proposed sources.json is internally consistent", () => {
+test("the sources.json policy is internally consistent", () => {
   assert.deepEqual(validateSourcePolicy(policy), []);
   assert.ok(policy.preferred.length > 20 && policy.excluded.length > 20);
+  assert.equal(policy.mode, "denylist");
+  assert.equal(policy.limits.maxStoriesPerDomain, 1);
 });
 
-test("the draft policy is marked provisional and every validation run says so", () => {
-  assert.equal(policy.status, "provisional");
-  const report = validateEdition(valid(), { policy, now: NOW });
+test("sources.json applies the 2026-10-19 editorial review decisions", () => {
+  const status = (url) => evaluateSource(url, policy).status;
+  for (const url of [
+    "https://www.theregister.com/security/2026/10/19/x/",
+    "https://www.usine-digitale.fr/intelligence-artificielle/x.html",
+    "https://lwn.net/Articles/1101483/",
+    "https://openai.com/index/x",
+    "https://community.openai.com/t/x/1",
+  ])
+    assert.equal(status(url), "excluded", url);
+  for (const url of [
+    "https://huggingface.co/blog/x",
+    "https://huggingface.co/blog/someone/community-post",
+    "https://huggingface.co/papers/2610.00001",
+    "https://next.ink/262159/x/",
+  ])
+    assert.equal(status(url), "review", url);
+  for (const [url, tier] of [
+    ["https://thenewstack.io/x/", 2],
+    ["https://www.zdnet.com/article/x/", 2],
+    ["https://www.anssi.gouv.fr/actualite/x/", 1],
+  ])
+    assert.deepEqual(
+      [status(url), evaluateSource(url, policy).tier],
+      ["preferred", tier],
+      url,
+    );
+  assert.deepEqual(evaluateSource("https://buildkite.com/blog/x", policy), {
+    status: "allowed",
+    tier: 3,
+  });
+  // Every excluded domain fits the web search block list (research.mjs keeps 100).
+  assert.ok(policy.excluded.length <= 100);
+});
+
+test("a provisional policy is flagged on every validation run", () => {
+  const provisional = { ...policy, status: "provisional" };
+  const report = validateEdition(valid(), { policy: provisional, now: NOW });
   assert.ok(codes(report.warnings).includes("SOURCE_POLICY_PROVISIONAL"));
   const approved = validateEdition(valid(), {
     policy: { ...policy, status: "approved" },

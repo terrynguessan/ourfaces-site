@@ -1,8 +1,8 @@
 {
   "version": 1,
   "mode": "denylist",
-  "status": "provisional",
-  "notes": "PROVISIONAL DRAFT - NOT APPROVED FOR PRODUCTION. The preferred, review and exclusion lists are proposals pending editorial review and must be approved before any automated publication. 'preferred' sources rank first (tier 1 = primary/official, tier 2 = established technical press). Unknown sources are allowed in denylist mode but rank last; switch mode to 'allowlist' to accept only 'preferred'. 'reviewRequired' sources are blocked from autonomous publication. A domain entry also matches its subdomains.",
+  "status": "approved",
+  "notes": "APPROVED FOR PRODUCTION on 2026-10-19 after editorial review. Changes to these lists need a new editorial review. 'preferred' sources rank first (tier 1 = primary/official, tier 2 = established technical press). Unknown sources are allowed in denylist mode but rank last; switch mode to 'allowlist' to accept only 'preferred'. 'reviewRequired' sources are blocked from autonomous publication. 'excluded' sources are refused and also blocked in web search. A domain entry also matches its subdomains.",
   "limits": {
     "maxStoriesPerDomain": 1
   },
@@ -26,11 +26,9 @@
       "tier": 1,
       "kind": "vendor-engineering"
     },
-    { "domain": "openai.com", "tier": 1, "kind": "vendor" },
     { "domain": "anthropic.com", "tier": 1, "kind": "vendor" },
     { "domain": "deepmind.google", "tier": 1, "kind": "vendor-research" },
     { "domain": "ai.meta.com", "tier": 1, "kind": "vendor-research" },
-    { "domain": "huggingface.co", "tier": 1, "kind": "vendor-engineering" },
     { "domain": "nodejs.org", "tier": 1, "kind": "project" },
     { "domain": "nextjs.org", "tier": 1, "kind": "project" },
     { "domain": "react.dev", "tier": 1, "kind": "project" },
@@ -49,19 +47,15 @@
     { "domain": "owasp.org", "tier": 1, "kind": "standards" },
     { "domain": "cnil.fr", "tier": 1, "kind": "government" },
     { "domain": "anssi.gouv.fr", "tier": 1, "kind": "government" },
-    { "domain": "lwn.net", "tier": 2, "kind": "press" },
     { "domain": "infoq.com", "tier": 2, "kind": "press" },
     { "domain": "thenewstack.io", "tier": 2, "kind": "press" },
     { "domain": "arstechnica.com", "tier": 2, "kind": "press" },
-    { "domain": "theregister.com", "tier": 2, "kind": "press" },
     { "domain": "technologyreview.com", "tier": 2, "kind": "press" },
     { "domain": "spectrum.ieee.org", "tier": 2, "kind": "press" },
     { "domain": "theverge.com", "tier": 2, "kind": "press" },
     { "domain": "techcrunch.com", "tier": 2, "kind": "press" },
     { "domain": "zdnet.com", "tier": 2, "kind": "press" },
-    { "domain": "lemondeinformatique.fr", "tier": 2, "kind": "press-fr" },
-    { "domain": "next.ink", "tier": 2, "kind": "press-fr" },
-    { "domain": "usine-digitale.fr", "tier": 2, "kind": "press-fr" }
+    { "domain": "lemondeinformatique.fr", "tier": 2, "kind": "press-fr" }
   ],
   "reviewRequired": [
     {
@@ -81,6 +75,14 @@
     {
       "domain": "wikipedia.org",
       "reason": "tertiary source; cite the primary source instead"
+    },
+    {
+      "domain": "huggingface.co",
+      "reason": "hosts user-generated community posts and preprint pages"
+    },
+    {
+      "domain": "next.ink",
+      "reason": "article extraction includes reader comments"
     }
   ],
   "excluded": [
@@ -152,6 +154,22 @@
     {
       "domain": "theinformation.com",
       "reason": "paywall; article text cannot be verified"
+    },
+    {
+      "domain": "lwn.net",
+      "reason": "paywall; new articles are subscriber-only for a week"
+    },
+    {
+      "domain": "theregister.com",
+      "reason": "robots.txt blocks unlisted crawlers"
+    },
+    {
+      "domain": "usine-digitale.fr",
+      "reason": "bot protection blocks automated fetching"
+    },
+    {
+      "domain": "openai.com",
+      "reason": "blocks automated fetching (HTTP 403); article text cannot be verified"
     }
   ]
 }
