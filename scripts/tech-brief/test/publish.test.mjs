@@ -2,8 +2,8 @@
 // evidence, full validation, the Sunday source recheck, public-content
 // minimisation, atomic writes, recovery and website compatibility. Offline:
 // articles are synthetic fixtures served by a fake fetcher, or by the real
-// fetcher against a local HTTPS server; the approved source policy is a
-// test-only copy (the real sources.json stays provisional).
+// fetcher against a local HTTPS server; the approved and provisional source
+// policies are test-only copies of the real lists with an explicit status.
 
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -43,11 +43,16 @@ import {
 } from "./helpers.mjs";
 
 const config = await loadConfig();
-const REAL_POLICY = await loadSourcePolicy(
+const SOURCE_POLICY = await loadSourcePolicy(
   new URL("../sources.json", import.meta.url),
 );
-// TEST-ONLY: a synthetic approved copy. The real policy file is not changed.
-const APPROVED_POLICY = Object.freeze({ ...REAL_POLICY, status: "approved" });
+// TEST-ONLY copies with an explicit status, so these tests do not depend on
+// the status of the real sources.json. The real policy file is not changed.
+const APPROVED_POLICY = Object.freeze({ ...SOURCE_POLICY, status: "approved" });
+const PROVISIONAL_POLICY = Object.freeze({
+  ...SOURCE_POLICY,
+  status: "provisional",
+});
 const NOW = new Date("2026-10-26T00:10:00.000Z"); // Sunday 25 Oct 20:10 EDT
 const CLI = fileURLToPath(new URL("../publish.mjs", import.meta.url));
 
@@ -822,9 +827,12 @@ test("source policy: provisional policy, provisional research and dry runs are r
         ...extra,
       }),
     );
-  assert.equal(await run(buildResult(), REAL_POLICY), "POLICY_NOT_APPROVED");
   assert.equal(
-    await run(buildResult(), REAL_POLICY, {
+    await run(buildResult(), PROVISIONAL_POLICY),
+    "POLICY_NOT_APPROVED",
+  );
+  assert.equal(
+    await run(buildResult(), PROVISIONAL_POLICY, {
       allowProvisionalPolicy: true,
       mode: "dry-run",
     }),
@@ -849,9 +857,9 @@ test("source policy: provisional policy, provisional research and dry runs are r
     await run(buildResult({ mode: "dry-run" }), APPROVED_POLICY),
     "NOT_PRODUCTION",
   );
-  assert.equal(
-    REAL_POLICY.status,
-    "provisional",
+  assert.deepEqual(
+    await loadSourcePolicy(new URL("../sources.json", import.meta.url)),
+    SOURCE_POLICY,
     "the real policy file is unchanged",
   );
   assert.deepEqual(snapshot(dir), before);

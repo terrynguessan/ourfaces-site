@@ -70,11 +70,13 @@ const ME = ["-c", "user.name=Test", "-c", "user.email=test@example.invalid"];
 const git = (dir, ...args) => runGit(dir, args);
 
 const config = await loadConfig();
-const REAL_POLICY = await loadSourcePolicy(
+const SOURCE_POLICY = await loadSourcePolicy(
   new URL("../sources.json", import.meta.url),
 );
-// TEST-ONLY approved copy; the real sources.json stays as it is.
-const APPROVED = Object.freeze({ ...REAL_POLICY, status: "approved" });
+// TEST-ONLY copies of the source lists with an explicit status, so these
+// tests do not depend on the status of the real sources.json.
+const APPROVED = Object.freeze({ ...SOURCE_POLICY, status: "approved" });
+const PROVISIONAL = Object.freeze({ ...SOURCE_POLICY, status: "provisional" });
 const EDITION = "2026-10-24";
 const RESERVED_AT = new Date("2026-10-25T00:17:00.000Z"); // Sat 20:17 EDT
 const SUNDAY = rehearsalClock(EDITION); // Sun 20:10 EDT
@@ -332,7 +334,7 @@ test("gate: production only for schedule or dispatch, enabled, on main, approved
     { ref: "refs/heads/feature" },
     { ref: "refs/pull/1/merge" },
     { ref: "refs/tags/main" },
-    { policy: REAL_POLICY },
+    { policy: PROVISIONAL },
     { policy: undefined },
   ])
     assert.equal(
@@ -340,10 +342,9 @@ test("gate: production only for schedule or dispatch, enabled, on main, approved
       "skip",
       JSON.stringify(change),
     );
-  assert.equal(
-    REAL_POLICY.status === "approved",
-    false,
-    "the real policy stays unapproved",
+  assert.match(
+    gate({ ...ok, policy: PROVISIONAL }).reason,
+    /"provisional", not approved/,
   );
 });
 
@@ -425,7 +426,7 @@ test("activation states: off does nothing, manual allows only dispatched runs, e
       event: "workflow_dispatch",
       ref: "refs/heads/main",
       automation: "manual",
-      policy: REAL_POLICY,
+      policy: PROVISIONAL,
     }).run,
     "skip",
   );
@@ -576,7 +577,7 @@ test("planPublication: due on Sunday's schedule, skipped when published, disable
     planPublication({ ...base, automation: "disabled" }).run,
     "skip",
   );
-  assert.equal(planPublication({ ...base, policy: REAL_POLICY }).run, "skip");
+  assert.equal(planPublication({ ...base, policy: PROVISIONAL }).run, "skip");
   assert.equal(planPublication({ ...base, now: RESERVED_AT }).code, "EARLY");
   // Scheduled window closed: only a manual recovery runs, until the next cutoff.
   const late = { ...base, now: new Date("2026-10-27T18:00:00.000Z") };
@@ -1057,7 +1058,7 @@ test("Sunday refuses tampered, expired, failed, mis-keyed or unregistered artifa
     ],
     ["wrong key", { keys: [OTHER_KEY] }, "KEY_MISMATCH"],
     ["the rehearsal key", { keys: [KEY, REHEARSAL_KEY] }, "REHEARSAL_KEY"],
-    ["provisional policy", { policy: REAL_POLICY }, "POLICY_NOT_APPROVED"],
+    ["provisional policy", { policy: PROVISIONAL }, "POLICY_NOT_APPROVED"],
     [
       "no handoff for the edition",
       { edition: "2026-10-31", now: rehearsalClock("2026-10-31") },
@@ -1445,14 +1446,22 @@ test("CLI: disabled or non-main runs plan nothing; manual refusals are visible; 
   assert.equal(scheduled.status, 0);
   assert.equal(JSON.parse(scheduled.stdout).run, "skip");
   assert.match(readFileSync(outputs, "utf8"), /^run=skip$/m);
-  const manual = run(AUTOMATION, args, {
+  // The CLI reads the sources.json next to automation.mjs, so the policy
+  // refusals run against a copy of the scripts with a provisional policy.
+  const scripts = join(out, "tech-brief");
+  cpSync(fileURLToPath(new URL("..", import.meta.url)), scripts, {
+    recursive: true,
+  });
+  writeFileSync(join(scripts, "sources.json"), JSON.stringify(PROVISIONAL));
+  const PROVISIONAL_AUTOMATION = join(scripts, "automation.mjs");
+  const manual = run(PROVISIONAL_AUTOMATION, args, {
     GITHUB_EVENT_NAME: "workflow_dispatch",
     GITHUB_REF: "refs/heads/main",
     TECH_BRIEF_AUTOMATION: "enabled",
   });
-  // The real policy is provisional, so even an enabled manual run is refused.
+  // The policy is provisional, so even an enabled manual run is refused.
   assert.equal(manual.status, 4);
-  assert.match(JSON.parse(manual.stdout).reason, /provisional|not approved/);
+  assert.match(JSON.parse(manual.stdout).reason, /"provisional", not approved/);
   // Manual mode: a schedule is a quiet skip; a dispatch passes activation and
   // is then refused only by the provisional policy.
   const env = (event, automation) => ({
@@ -1470,14 +1479,14 @@ test("CLI: disabled or non-main runs plan nothing; manual refusals are visible; 
     /Scheduled runs are off/,
   );
   const manualDispatch = run(
-    AUTOMATION,
+    PROVISIONAL_AUTOMATION,
     args,
     env("workflow_dispatch", "manual"),
   );
   assert.equal(manualDispatch.status, 4);
   assert.match(
     JSON.parse(manualDispatch.stdout).reason,
-    /provisional|not approved/,
+    /"provisional", not approved/,
   );
   const off = run(AUTOMATION, args, env("workflow_dispatch", "off"));
   assert.equal(off.status, 4);

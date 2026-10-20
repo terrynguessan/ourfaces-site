@@ -34,9 +34,14 @@ import {
 } from "./openai-mock.mjs";
 
 const config = await loadConfig();
-const policy = await loadSourcePolicy(
-  fileURLToPath(new URL("../sources.json", import.meta.url)),
-);
+// TEST-ONLY provisional copy of the real source lists, so these tests do not
+// depend on the status of the real sources.json.
+const policy = {
+  ...(await loadSourcePolicy(
+    fileURLToPath(new URL("../sources.json", import.meta.url)),
+  )),
+  status: "provisional",
+};
 const EDITION = "2026-10-24";
 const NOW = new Date("2026-10-25T00:30:00Z"); // Saturday 20:30 Eastern
 const NONCE = "testnonce0123";
