@@ -31,6 +31,13 @@
 //     reduced edition is validated again with the fetched articles.
 //  7. The public projection has exactly the public shape and passes the
 //     edition schema.
+//  8. Editorial approval (supervised publication): the SHA-256 of the exact
+//     public file text (contentDigest) must equal the digest the reviewer
+//     approved from the editorial preview. Any difference, including a story
+//     dropped by the Sunday recheck, refuses publication; nothing is removed
+//     or substituted after approval. requireApproval refuses a write without
+//     one; without requireApproval (automated mode) a given digest is still
+//     enforced.
 //
 // Writing: both files are written to temporary files first, then renamed:
 // the archive copy, then latest.json. An existing archive copy for the edition
@@ -42,7 +49,7 @@
 // files it reports (and nothing else, verified with `git status`), pushes, and
 // on any failure before the commit restores src/content/tech-brief from Git.
 
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import {
   closeSync,
   existsSync,
@@ -124,6 +131,11 @@ export function publicEdition(edition) {
 
 export const serializeEdition = (edition) =>
   `${JSON.stringify(edition, null, 2)}\n`;
+
+/** SHA-256 (hex) of the exact public file text: what an editorial approval names. */
+export const contentDigest = (text) =>
+  createHash("sha256").update(text, "utf8").digest("hex");
+const DIGEST = /^[0-9a-f]{64}$/;
 
 /** Problems with a public edition: any field beyond the public shape, or a schema error. */
 export function publicEditionProblems(value) {
@@ -265,7 +277,11 @@ const removeQuietly = (path) => {
 /**
  * Prepares the public files for one authenticated research result. Returns
  * { status: "prepared" | "checked" | "already-published", edition, files,
- *   archiveCreated, dropped, warnings } or throws PublishError.
+ *   archiveCreated, dropped, warnings, contentDigest } or throws PublishError.
+ * With write: false ("checked") it also returns the exact file `text` and the
+ * public fields of any dropped stories (`droppedStories`), for the editorial
+ * preview. `approvedDigest` is the contentDigest a reviewer approved;
+ * `requireApproval` refuses a write without one.
  * `rename` exists so tests can make the final file replacement fail.
  */
 export async function preparePublication({
@@ -278,8 +294,22 @@ export async function preparePublication({
   now = new Date(),
   trigger = "schedule",
   write = true,
+  approvedDigest = null,
+  requireApproval = false,
   rename = renameSync,
 }) {
+  // 8 (checked first, before any fetch): an approval, when given, is a digest.
+  if (approvedDigest !== null && !DIGEST.test(approvedDigest ?? ""))
+    fail(
+      "APPROVAL_INVALID",
+      "The approved digest must be 64 lowercase hexadecimal characters",
+    );
+  if (write && requireApproval && approvedDigest === null)
+    fail(
+      "APPROVAL_REQUIRED",
+      "Supervised publication needs the content digest of the approved editorial preview",
+    );
+
   // 1. Policy and research result.
   if (policy?.status !== "approved")
     fail(
@@ -424,9 +454,30 @@ export async function preparePublication({
     files: ["latest.json", `editions/${edition}.json`],
     dropped,
     warnings: [...warnings].sort(),
+    contentDigest: contentDigest(text),
   };
-  if (!write)
-    return { status: "checked", ...result, archiveCreated: false, text };
+
+  // 8. Editorial approval: exactly the reviewed content, or nothing.
+  if (approvedDigest !== null && result.contentDigest !== approvedDigest)
+    fail(
+      "APPROVAL_MISMATCH",
+      "The public edition differs from the approved editorial preview; it needs a new review",
+      { dropped },
+    );
+  if (!write) {
+    const droppedIds = new Set(dropped.map((d) => d.id));
+    const droppedStories = publicEdition({
+      ...draft,
+      stories: draft.stories.filter((s) => droppedIds.has(s.id)),
+    }).stories;
+    return {
+      status: "checked",
+      ...result,
+      archiveCreated: false,
+      text,
+      droppedStories,
+    };
+  }
 
   // Writing.
   const archivePath = join(editionsDir, `${edition}.json`);

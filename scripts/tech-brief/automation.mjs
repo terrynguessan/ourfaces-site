@@ -10,6 +10,15 @@
 //   plan-publication -> resolve -> GitHub records -> download-artifact
 //   -> sunday-prepare (provenance, decryption, publish.mjs) -> check-changes
 //   -> commit and push -> verify-live
+// Editorial preview (.github/workflows/tech-brief-preview.yml, read-only):
+//   plan-publication -> resolve -> GitHub records -> download-artifact
+//   -> preview (the same checks with write: false, encrypted to the reviewer
+//   key) -> upload-artifact
+//
+// Editorial approval: while TECH_BRIEF_AUTOMATION is "manual" (or anything
+// but "enabled"), publication needs the content digest of the approved
+// preview (workflow input approved_digest) and writes only that exact
+// content; "enabled" publishes without one, but still enforces one if given.
 //
 // Activation gate (fail closed): the repository variable TECH_BRIEF_AUTOMATION
 // selects a state (ACTIVATION). "off" (or unset, or any other value): no
@@ -54,7 +63,18 @@ import {
   resolveHandoff,
   verifyProvenance,
 } from "./provenance.mjs";
-import { preparePublication, readPublishedState } from "./publish.mjs";
+import {
+  PREVIEW_FILE,
+  buildPreview,
+  parseReviewerPublicKey,
+  reviewerKeyId,
+  sealPreview,
+} from "./preview.mjs";
+import {
+  contentDigest,
+  preparePublication,
+  readPublishedState,
+} from "./publish.mjs";
 import { loadConfig } from "./research.mjs";
 import { currentEdition, stageDecision } from "./schedule.mjs";
 import { loadSourcePolicy } from "./validate.mjs";
@@ -363,6 +383,9 @@ export async function sundayPrepare({
   contentDir,
   now = new Date(),
   trigger = "schedule",
+  write = true,
+  approvedDigest = null,
+  requireApproval = false,
 }) {
   refuseRehearsalKey(keys);
   const handoff = resolveHandoff(ledgerState, edition);
@@ -384,12 +407,91 @@ export async function sundayPrepare({
     contentDir,
     now,
     trigger,
+    write,
+    approvedDigest,
+    requireApproval,
   });
   return {
     ...outcome,
     reservationId: handoff.reservationId,
     artifactId: handoff.artifactId,
+    handoff,
   };
+}
+
+/** Whether publication needs an editorial approval: always, unless automation is fully enabled. */
+export const approvalRequired = (automation) => automation !== "enabled";
+
+/** The preview artifact name; distinct from the research bundle, which publication reads by id. */
+export const previewArtifactName = (edition, workflowRunId, runAttempt) =>
+  `tech-brief-preview-${edition}-${workflowRunId}-${runAttempt}`;
+
+/**
+ * Editorial preview: the Sunday checks of sundayPrepare with write: false
+ * (real clock, real source recheck), then the public result encrypted to the
+ * reviewer's public key. The reviewer key is checked before anything is
+ * decrypted. Writes nothing; returns { status, edition, ... } and, when
+ * checked, the sealed preview.
+ */
+export async function previewSunday({
+  reviewerPublicKey,
+  previewRun = {},
+  now = new Date(),
+  ...inputs
+}) {
+  const recipient = parseReviewerPublicKey(reviewerPublicKey);
+  const outcome = await sundayPrepare({
+    ...inputs,
+    now,
+    trigger: "manual",
+    write: false,
+  });
+  if (outcome.status !== "checked")
+    return { status: outcome.status, edition: outcome.edition };
+  const payload = buildPreview({
+    outcome,
+    handoff: outcome.handoff,
+    previewRun,
+    now,
+  });
+  const sealed = sealPreview({ payload, recipient, now });
+  return {
+    status: "checked",
+    edition: outcome.edition,
+    stories: JSON.parse(outcome.text).stories.length,
+    dropped: outcome.dropped.length,
+    reviewerKeyId: reviewerKeyId(recipient),
+    sealed,
+  };
+}
+
+/**
+ * Before the commit: the two public files must be byte-identical and, when an
+ * approval is given or required, have exactly the approved content digest.
+ */
+export function checkApprovedFiles({
+  contentDir,
+  edition,
+  approvedDigest = null,
+  requireApproval = false,
+}) {
+  if (requireApproval && approvedDigest === null)
+    fail(
+      "APPROVAL_REQUIRED",
+      "Supervised publication needs an approved digest",
+    );
+  if (approvedDigest === null) return null;
+  const latest = readFileSync(join(contentDir, "latest.json"), "utf8");
+  const archive = readFileSync(
+    join(contentDir, "editions", `${edition}.json`),
+    "utf8",
+  );
+  if (latest !== archive || contentDigest(latest) !== approvedDigest)
+    fail(
+      "APPROVAL_MISMATCH",
+      "The files to commit differ from the approved editorial preview",
+    );
+  return approvedDigest;
 }
 
 /**
@@ -478,6 +580,28 @@ if (
   const policyFile = new URL("./sources.json", import.meta.url);
   const ledgerPath = () => join(option("--ledger-dir") ?? "", LEDGER_FILE);
   const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
+  // Inputs shared by sunday-prepare and preview (the same checks, the real clock).
+  const sundayInputs = async () => {
+    const repoDir = option("--repo-dir") ?? ".";
+    const policy = await loadSourcePolicy(policyFile);
+    const now = new Date();
+    return {
+      ledgerState: readLedger(ledgerPath(), { now }).state,
+      edition: option("--edition"),
+      artifact: readJson(option("--artifact-json") ?? ""),
+      run: readJson(option("--run-json") ?? ""),
+      expected: expectedResearchWorkflow(env),
+      isMainCommit: (sha) =>
+        gitIsAncestor(sha, "origin/main", { dir: repoDir }),
+      bundleBytes: readFileSync(singleFile(option("--bundle-dir") ?? "")),
+      keys: keysFromEnvironment(env),
+      policy,
+      config: await loadConfig(),
+      fetcher: createFetcher({ sourcePolicy: policy }),
+      contentDir: option("--content-dir"),
+      now,
+    };
+  };
   try {
     const now = new Date();
     switch (command) {
@@ -618,30 +742,53 @@ if (
         break;
       }
       case "sunday-prepare": {
-        const repoDir = option("--repo-dir") ?? ".";
-        const policy = await loadSourcePolicy(policyFile);
         const outcome = await sundayPrepare({
-          ledgerState: readLedger(ledgerPath(), { now }).state,
-          edition: option("--edition"),
-          artifact: readJson(option("--artifact-json") ?? ""),
-          run: readJson(option("--run-json") ?? ""),
-          expected: expectedResearchWorkflow(env),
-          isMainCommit: (sha) =>
-            gitIsAncestor(sha, "origin/main", { dir: repoDir }),
-          bundleBytes: readFileSync(singleFile(option("--bundle-dir") ?? "")),
-          keys: keysFromEnvironment(env),
-          policy,
-          config: await loadConfig(),
-          fetcher: createFetcher({ sourcePolicy: policy }),
-          contentDir: option("--content-dir"),
-          now,
+          ...(await sundayInputs()),
           trigger: env.GITHUB_EVENT_NAME === "schedule" ? "schedule" : "manual",
+          approvedDigest: option("--approved-digest") || null,
+          requireApproval: approvalRequired(env[AUTOMATION_VARIABLE]),
         });
         emit(0, {
           status: outcome.status,
           edition: outcome.edition,
           files: outcome.files.join(" "),
           dropped: outcome.dropped.length,
+          content_digest: outcome.contentDigest ?? "",
+        });
+        break;
+      }
+      case "preview": {
+        // The reviewer key is checked first: without it nothing is decrypted.
+        const reviewerPublicKey = env.TECH_BRIEF_REVIEWER_PUBLIC_KEY ?? "";
+        parseReviewerPublicKey(reviewerPublicKey);
+        const outDir = option("--out-dir") ?? "";
+        if (!outDir) fail("USAGE", "--out-dir is required");
+        const result = await previewSunday({
+          ...(await sundayInputs()),
+          reviewerPublicKey,
+          previewRun: {
+            workflowRunId: Number(env.GITHUB_RUN_ID) || null,
+            runAttempt: Number(env.GITHUB_RUN_ATTEMPT) || null,
+          },
+        });
+        if (result.status !== "checked")
+          emit(0, { status: result.status, edition: result.edition });
+        mkdirSync(outDir, { recursive: true });
+        const path = join(outDir, PREVIEW_FILE);
+        writeFileSync(path, result.sealed.bytes, { flag: "wx" });
+        emit(0, {
+          status: result.status,
+          edition: result.edition,
+          stories: result.stories,
+          dropped: result.dropped,
+          reviewer_key_id: result.reviewerKeyId,
+          artifact_name: previewArtifactName(
+            result.edition,
+            env.GITHUB_RUN_ID,
+            env.GITHUB_RUN_ATTEMPT,
+          ),
+          path,
+          preview_digest: result.sealed.digest,
         });
         break;
       }
@@ -651,7 +798,13 @@ if (
           runGit(repoDir, ["status", "--porcelain", "--untracked-files=all"]),
           { edition: option("--edition") },
         );
-        emit(0, { files: paths.join(" ") });
+        const approved = checkApprovedFiles({
+          contentDir: join(repoDir, "src/content/tech-brief"),
+          edition: option("--edition"),
+          approvedDigest: option("--approved-digest") || null,
+          requireApproval: approvalRequired(env[AUTOMATION_VARIABLE]),
+        });
+        emit(0, { files: paths.join(" "), approved_digest: approved ?? "" });
         break;
       }
       case "verify-live": {

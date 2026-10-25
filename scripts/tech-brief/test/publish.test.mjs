@@ -26,6 +26,7 @@ import { buildEvidence, extractArticle } from "../html.mjs";
 import {
   EMPTY_EDITION,
   PublishError,
+  contentDigest,
   preparePublication,
   publicEdition,
   publicEditionProblems,
@@ -582,6 +583,136 @@ test("three stories is the minimum: a four-story edition may lose one story on S
   assert.equal(error.code, "INSUFFICIENT_STORIES");
   assert.equal(error.details.dropped.length, 2);
   assert.deepEqual(snapshot(failing), before);
+});
+
+test("editorial approval: only the exact previewed content is published; any difference needs a new review", async () => {
+  const four = buildResult({ picks: [0, 1, 2, 3] });
+  // The preview: every check, nothing written, the digest of the exact file text.
+  const previewDir = contentDir();
+  const untouched = snapshot(previewDir);
+  const preview = await prepare(four, previewDir, { write: false });
+  assert.equal(preview.status, "checked");
+  assert.equal(preview.contentDigest, contentDigest(preview.text));
+  assert.match(preview.contentDigest, /^[0-9a-f]{64}$/);
+  assert.deepEqual(preview.droppedStories, []);
+  assert.deepEqual(snapshot(previewDir), untouched);
+  // The same research result always gives the same text and digest.
+  const again = await prepare(four, contentDir(), { write: false });
+  assert.equal(again.contentDigest, preview.contentDigest);
+
+  // Supervised publication without an approval, or with a malformed one, is
+  // refused before any source is fetched.
+  const dir = contentDir();
+  const before = snapshot(dir);
+  let fetches = 0;
+  const counting = {
+    fetchArticle: async () => {
+      fetches++;
+      return { ok: false, code: "HTTP_STATUS" };
+    },
+  };
+  assert.equal(
+    await codeOf(
+      prepare(four, dir, { requireApproval: true, fetcher: counting }),
+    ),
+    "APPROVAL_REQUIRED",
+  );
+  for (const bad of [
+    "",
+    "abc",
+    "A".repeat(64),
+    preview.contentDigest.toUpperCase(),
+    ` ${preview.contentDigest}`,
+    `${preview.contentDigest}0`,
+  ])
+    assert.equal(
+      await codeOf(
+        prepare(four, dir, {
+          approvedDigest: bad,
+          requireApproval: true,
+          fetcher: counting,
+        }),
+      ),
+      "APPROVAL_INVALID",
+      JSON.stringify(bad),
+    );
+  assert.equal(fetches, 0);
+  // Another digest is refused after every check, with nothing written.
+  assert.equal(
+    await codeOf(
+      prepare(four, dir, {
+        approvedDigest: "0".repeat(64),
+        requireApproval: true,
+      }),
+    ),
+    "APPROVAL_MISMATCH",
+  );
+  // A substituted edition (another set of stories) is refused too.
+  assert.equal(
+    await codeOf(
+      prepare(buildResult({ picks: [0, 1, 2] }), dir, {
+        approvedDigest: preview.contentDigest,
+        requireApproval: true,
+      }),
+    ),
+    "APPROVAL_MISMATCH",
+  );
+  assert.deepEqual(snapshot(dir), before);
+
+  // The approved digest publishes exactly the previewed text, in both files.
+  const ok = await prepare(four, dir, {
+    approvedDigest: preview.contentDigest,
+    requireApproval: true,
+  });
+  assert.equal(ok.status, "prepared");
+  assert.equal(ok.contentDigest, preview.contentDigest);
+  assert.equal(readFileSync(join(dir, "latest.json"), "utf8"), preview.text);
+  assert.equal(
+    readFileSync(join(dir, "editions", "2026-10-24.json"), "utf8"),
+    preview.text,
+  );
+
+  // A story the Sunday recheck would drop after approval: the whole
+  // publication is refused, the story is not silently removed.
+  const later = contentDir();
+  const laterBefore = snapshot(later);
+  const error = await errorOf(
+    prepare(four, later, {
+      changes: { 1: "missing" },
+      approvedDigest: preview.contentDigest,
+      requireApproval: true,
+    }),
+  );
+  assert.equal(error.code, "APPROVAL_MISMATCH");
+  assert.deepEqual(error.details.dropped, [
+    { id: "s2", reasons: ["SOURCE_UNAVAILABLE:HTTP_STATUS"] },
+  ]);
+  assert.deepEqual(snapshot(later), laterBefore);
+  // A new preview shows the drop, with the dropped story's public fields only.
+  const reduced = await prepare(four, contentDir(), {
+    changes: { 1: "missing" },
+    write: false,
+  });
+  assert.deepEqual(
+    reduced.dropped.map((d) => d.id),
+    ["s2"],
+  );
+  assert.deepEqual(
+    reduced.droppedStories.map((s) => s.id),
+    ["s2"],
+  );
+  assert.deepEqual(
+    Object.keys(reduced.droppedStories[0]),
+    Object.keys(JSON.parse(preview.text).stories[1]),
+  );
+  assert.ok(!JSON.stringify(reduced.droppedStories).includes(QUOTE_MARKER));
+  assert.notEqual(reduced.contentDigest, preview.contentDigest);
+
+  // Automated mode (no approval required) still publishes the reduced edition.
+  const automated = contentDir();
+  const auto = await prepare(four, automated, { changes: { 1: "missing" } });
+  assert.equal(auto.status, "prepared");
+  assert.equal(auto.contentDigest, reduced.contentDigest);
 });
 
 test("Sunday source recheck: missing, changed, moved, sponsored or redated articles are dropped", async () => {
