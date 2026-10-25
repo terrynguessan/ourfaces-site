@@ -9,6 +9,9 @@
 # The job needs the tech-brief-publish environment (TECH_BRIEF_ARTIFACT_KEY
 # only, never the OpenAI key). It pushes one commit to main without force; if
 # branch protection refuses that push the run fails and nothing is published.
+# Supervised publication (TECH_BRIEF_AUTOMATION "manual"): approved_digest must
+# be the content digest of the editorial preview the editor approved
+# (tech-brief-preview.yml); any other content is refused and needs a new review.
 
 name: Tech Brief publication
 
@@ -24,6 +27,10 @@ on:
     inputs:
       edition:
         description: "Recovery only: Saturday edition (YYYY-MM-DD); empty for the current edition"
+        required: false
+        default: ""
+      approved_digest:
+        description: "Supervised publication: the content digest of the approved editorial preview"
         required: false
         default: ""
 
@@ -90,18 +97,23 @@ jobs:
         if: steps.plan.outputs.run == 'production'
         env:
           EDITION: ${{ steps.plan.outputs.edition }}
+          TECH_BRIEF_AUTOMATION: ${{ vars.TECH_BRIEF_AUTOMATION }}
+          APPROVED_DIGEST: ${{ inputs.approved_digest }}
           TECH_BRIEF_ARTIFACT_KEY: ${{ secrets.TECH_BRIEF_ARTIFACT_KEY }}
           TECH_BRIEF_ARTIFACT_KEY_PREVIOUS: ${{ secrets.TECH_BRIEF_ARTIFACT_KEY_PREVIOUS }}
         run: |
           node scripts/tech-brief/automation.mjs sunday-prepare --ledger-dir ledger --edition "$EDITION" \
             --artifact-json "$RUNNER_TEMP/artifact.json" --run-json "$RUNNER_TEMP/run.json" \
-            --bundle-dir "$RUNNER_TEMP/bundle" --content-dir src/content/tech-brief --repo-dir .
+            --bundle-dir "$RUNNER_TEMP/bundle" --content-dir src/content/tech-brief --repo-dir . \
+            --approved-digest "$APPROVED_DIGEST"
       - name: Commit and push the public edition
         if: steps.prepare.outputs.status == 'prepared'
         env:
           EDITION: ${{ steps.plan.outputs.edition }}
+          TECH_BRIEF_AUTOMATION: ${{ vars.TECH_BRIEF_AUTOMATION }}
+          APPROVED_DIGEST: ${{ inputs.approved_digest }}
         run: |
-          node scripts/tech-brief/automation.mjs check-changes --repo-dir . --edition "$EDITION"
+          node scripts/tech-brief/automation.mjs check-changes --repo-dir . --edition "$EDITION" --approved-digest "$APPROVED_DIGEST"
           git add src/content/tech-brief/latest.json "src/content/tech-brief/editions/$EDITION.json"
           git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
             commit -m "Publish Tech Brief edition $EDITION"

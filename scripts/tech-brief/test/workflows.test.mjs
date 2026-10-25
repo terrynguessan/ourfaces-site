@@ -15,6 +15,7 @@ const read = (path) =>
 const WORKFLOWS = {
   research: read(RESEARCH_WORKFLOW_PATH),
   publish: read(".github/workflows/tech-brief-publish.yml"),
+  preview: read(".github/workflows/tech-brief-preview.yml"),
   rehearsal: read(REHEARSAL_WORKFLOW_PATH),
   ci: read(".github/workflows/tech-brief-ci.yml"),
 };
@@ -96,6 +97,7 @@ test("the workflow files exist where the code expects them", () => {
     RESEARCH_WORKFLOW_PATH,
     REHEARSAL_WORKFLOW_PATH,
     ".github/workflows/tech-brief-publish.yml",
+    ".github/workflows/tech-brief-preview.yml",
     ".github/workflows/tech-brief-ci.yml",
   ])
     assert.ok(existsSync(new URL(path, ROOT)), path);
@@ -138,8 +140,10 @@ test("activation states: off, manual (dispatch only) and enabled, in both produc
   const conditions = {
     research: condition(jobs(WORKFLOWS.research).plan),
     publish: condition(jobs(WORKFLOWS.publish).publish),
+    preview: condition(jobs(WORKFLOWS.preview).preview),
   };
   assert.equal(conditions.research, conditions.publish);
+  assert.equal(conditions.preview, conditions.publish);
   // Production workflows receive exactly these events.
   for (const name of ["research", "publish"]) {
     const on = top(WORKFLOWS[name]).match(/^on:$([\s\S]*?)^\S/m)[1];
@@ -242,7 +246,7 @@ test("no workflow can be started by untrusted events, and none rewrites history"
 });
 
 test("permissions: none by default, and each job gets only what it needs", () => {
-  for (const name of ["research", "publish", "rehearsal"])
+  for (const name of ["research", "publish", "preview", "rehearsal"])
     assert.match(top(WORKFLOWS[name]), /\npermissions: \{\}\n/, name);
   assert.match(top(WORKFLOWS.ci), /\npermissions:\n {2}contents: read\n/);
   const writes = [];
@@ -263,6 +267,7 @@ test("permissions: none by default, and each job gets only what it needs", () =>
       );
     }
   assert.deepEqual(writes.sort(), [
+    "preview.preview actions: read",
     "publish.alert issues: write",
     "publish.publish actions: read",
     "publish.publish contents: write",
@@ -273,13 +278,15 @@ test("permissions: none by default, and each job gets only what it needs", () =>
   ]);
 });
 
-test("secrets: the OpenAI key only in Saturday research; the artifact key only there and in Sunday publish", () => {
+test("secrets: the OpenAI key only in Saturday research; the artifact key only there, in Sunday publish and in the preview", () => {
   const uses = [];
   for (const [workflow, text] of Object.entries(WORKFLOWS))
     for (const [job, body] of Object.entries(jobs(text)))
       for (const m of body.matchAll(/secrets\.([A-Z_]+)/g))
         uses.push(`${workflow}.${job} ${m[1]}`);
   assert.deepEqual([...new Set(uses)].sort(), [
+    "preview.preview TECH_BRIEF_ARTIFACT_KEY",
+    "preview.preview TECH_BRIEF_ARTIFACT_KEY_PREVIOUS",
     "publish.publish TECH_BRIEF_ARTIFACT_KEY",
     "publish.publish TECH_BRIEF_ARTIFACT_KEY_PREVIOUS",
     "research.research OPENAI_API_KEY",
@@ -291,11 +298,17 @@ test("secrets: the OpenAI key only in Saturday research; the artifact key only t
       for (const m of body.matchAll(/environment: ([a-z-]+)/g))
         environments.push(`${workflow}.${job} ${m[1]}`);
   assert.deepEqual(environments.sort(), [
+    "preview.preview tech-brief-publish",
     "publish.publish tech-brief-publish",
     "research.research tech-brief-research",
   ]);
   // Jobs holding a key never keep Git credentials, except publish, which must push main.
   assert.match(jobs(WORKFLOWS.research).research, /persist-credentials: false/);
+  const preview = jobs(WORKFLOWS.preview).preview;
+  assert.equal(
+    (preview.match(/persist-credentials: false/g) ?? []).length,
+    (preview.match(/uses: actions\/checkout@/g) ?? []).length,
+  );
   assert.ok(!WORKFLOWS.rehearsal.includes("secrets."));
   assert.ok(!WORKFLOWS.ci.includes("secrets."));
 });
@@ -338,6 +351,7 @@ test("scripts never interpolate expressions directly, and production jobs check 
     assert.match(jobs(WORKFLOWS.research)[job], /ref: main\n/, job);
   for (const job of ["publish", "verify-live"])
     assert.match(jobs(WORKFLOWS.publish)[job], /ref: main\n/, job);
+  assert.match(jobs(WORKFLOWS.preview).preview, /ref: main\n/);
 });
 
 test("artifacts: encrypted bundle only, immutable, with the intended retention", () => {
@@ -353,4 +367,90 @@ test("artifacts: encrypted bundle only, immutable, with the intended retention",
   assert.match(jobs(WORKFLOWS.publish).publish, /digest-mismatch: error/);
   assert.match(WORKFLOWS.rehearsal, /retention-days: 1/);
   assert.ok(!WORKFLOWS.publish.includes("upload-artifact"));
+  // The preview uploads only the encrypted preview file, for one day.
+  const preview = jobs(WORKFLOWS.preview).preview;
+  assert.equal((preview.match(/upload-artifact@/g) ?? []).length, 1);
+  assert.match(
+    preview,
+    /if: steps\.preview\.outputs\.status == 'checked'\n\s+uses: actions\/upload-artifact@/,
+  );
+  assert.match(preview, /path: \$\{\{ steps\.preview\.outputs\.path \}\}/);
+  assert.match(preview, /retention-days: 1\n/);
+  assert.match(preview, /overwrite: false/);
+  assert.match(preview, /digest-mismatch: error/);
+  assert.match(
+    preview,
+    /if: always\(\)\n\s+run: rm -rf "\$RUNNER_TEMP\/bundle" "\$RUNNER_TEMP\/preview"/,
+  );
+});
+
+test("editorial preview: manual, read-only, no OpenAI key; supervised publication passes the approved digest", () => {
+  const text = WORKFLOWS.preview;
+  const preview = jobs(text).preview;
+  assert.deepEqual(Object.keys(jobs(text)), ["preview"]);
+  // Dispatch only, and never queued with (or replacing) research or publication runs.
+  assert.match(top(text), /on:\n {2}workflow_dispatch:\n/);
+  assert.ok(!top(text).includes("schedule:"));
+  assert.match(
+    top(text),
+    /concurrency:\n {2}group: tech-brief-preview\n {2}cancel-in-progress: false/,
+  );
+  // Read-only token: exactly these two scopes.
+  assert.match(
+    preview,
+    /\n {4}permissions:\n {6}contents: read\n {6}actions: read\n {4}steps:/,
+  );
+  for (const forbidden of [
+    ": write",
+    "write-all",
+    "git push",
+    "git commit",
+    "git add",
+    "OPENAI",
+    "gh issue",
+    "sunday-prepare",
+    "check-changes",
+  ])
+    assert.ok(!text.includes(forbidden), forbidden);
+  assert.match(
+    preview,
+    /TECH_BRIEF_REVIEWER_PUBLIC_KEY: \$\{\{ vars\.TECH_BRIEF_REVIEWER_PUBLIC_KEY \}\}/,
+  );
+  // Every step after planning needs the planner's "production" decision.
+  const steps = preview.split(/\n {6}- /).slice(1);
+  const gated = steps.filter((s) =>
+    s.includes("if: steps.plan.outputs.run == 'production'"),
+  );
+  assert.equal(gated.length, 4);
+  for (const name of [
+    "automation.mjs resolve",
+    "gh api",
+    "download-artifact",
+    "automation.mjs preview",
+  ])
+    assert.ok(
+      gated.some((s) => s.includes(name)),
+      name,
+    );
+  // Publication: the approved digest reaches preparation and the commit check,
+  // with the activation state that decides whether it is required.
+  const publish = jobs(WORKFLOWS.publish).publish;
+  assert.match(top(WORKFLOWS.publish), /\n {6}approved_digest:\n/);
+  const count = (re) => (publish.match(re) ?? []).length;
+  assert.equal(
+    count(/APPROVED_DIGEST: \$\{\{ inputs\.approved_digest \}\}/g),
+    2,
+  );
+  assert.equal(
+    count(/TECH_BRIEF_AUTOMATION: \$\{\{ vars\.TECH_BRIEF_AUTOMATION \}\}/g),
+    3,
+  );
+  assert.match(
+    publish,
+    /sunday-prepare [^\n]*\\\n(?:[^\n]*\\\n)*[^\n]*--approved-digest "\$APPROVED_DIGEST"\n/,
+  );
+  assert.match(
+    publish,
+    /check-changes --repo-dir \. --edition "\$EDITION" --approved-digest "\$APPROVED_DIGEST"\n/,
+  );
 });

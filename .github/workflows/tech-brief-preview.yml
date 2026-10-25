@@ -1,0 +1,105 @@
+# Tech Brief editorial preview (manual only; never publishes).
+# Locate artifact -> verify provenance -> decrypt -> run every publication
+# check without writing (real clock: from Sunday 20:00 America/New_York) ->
+# encrypt the public edition to the reviewer's public key -> upload only that
+# encrypted file (1-day retention).
+#
+# Read-only: the token has contents: read and actions: read; nothing is
+# committed, pushed, deployed or written to the ledger, and there is no OpenAI
+# key. The job runs in the tech-brief-publish environment (artifact key) and
+# needs its variable TECH_BRIEF_REVIEWER_PUBLIC_KEY. Open the download locally
+# with `node scripts/tech-brief/preview.mjs open`; the content digest it prints
+# is the approved_digest input of the publication workflow.
+
+name: Tech Brief editorial preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      edition:
+        description: "Saturday edition (YYYY-MM-DD); empty for the current edition"
+        required: false
+        default: ""
+
+permissions: {}
+
+concurrency:
+  group: tech-brief-preview
+  cancel-in-progress: false
+
+jobs:
+  preview:
+    if: vars.TECH_BRIEF_AUTOMATION == 'enabled' || (vars.TECH_BRIEF_AUTOMATION == 'manual' && github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: tech-brief-publish
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: tech-brief-ledger
+          path: ledger
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - id: plan
+        env:
+          TECH_BRIEF_AUTOMATION: ${{ vars.TECH_BRIEF_AUTOMATION }}
+          EDITION: ${{ inputs.edition }}
+        run: node scripts/tech-brief/automation.mjs plan-publication --content-dir src/content/tech-brief --edition "$EDITION"
+      - id: resolve
+        if: steps.plan.outputs.run == 'production'
+        env:
+          EDITION: ${{ steps.plan.outputs.edition }}
+        run: node scripts/tech-brief/automation.mjs resolve --ledger-dir ledger --edition "$EDITION"
+      - name: Fetch the artifact and run-attempt records
+        if: steps.plan.outputs.run == 'production'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.resolve.outputs.artifact_id }}
+          RUN_ID: ${{ steps.resolve.outputs.workflow_run_id }}
+          RUN_ATTEMPT: ${{ steps.resolve.outputs.run_attempt }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID" > "$RUNNER_TEMP/artifact.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/attempts/$RUN_ATTEMPT" > "$RUNNER_TEMP/run.json"
+      - if: steps.plan.outputs.run == 'production'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ steps.resolve.outputs.artifact_id }}
+          run-id: ${{ steps.resolve.outputs.workflow_run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/bundle
+          digest-mismatch: error
+      - id: preview
+        if: steps.plan.outputs.run == 'production'
+        env:
+          EDITION: ${{ steps.plan.outputs.edition }}
+          TECH_BRIEF_REVIEWER_PUBLIC_KEY: ${{ vars.TECH_BRIEF_REVIEWER_PUBLIC_KEY }}
+          TECH_BRIEF_ARTIFACT_KEY: ${{ secrets.TECH_BRIEF_ARTIFACT_KEY }}
+          TECH_BRIEF_ARTIFACT_KEY_PREVIOUS: ${{ secrets.TECH_BRIEF_ARTIFACT_KEY_PREVIOUS }}
+        run: |
+          node scripts/tech-brief/automation.mjs preview --ledger-dir ledger --edition "$EDITION" \
+            --artifact-json "$RUNNER_TEMP/artifact.json" --run-json "$RUNNER_TEMP/run.json" \
+            --bundle-dir "$RUNNER_TEMP/bundle" --content-dir src/content/tech-brief --repo-dir . \
+            --out-dir "$RUNNER_TEMP/preview"
+      - id: upload
+        if: steps.preview.outputs.status == 'checked'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.preview.outputs.artifact_name }}
+          path: ${{ steps.preview.outputs.path }}
+          retention-days: 1
+          if-no-files-found: error
+          overwrite: false
+          compression-level: 0
+      - name: Remove the downloaded bundle and the preview file
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/bundle" "$RUNNER_TEMP/preview" "$RUNNER_TEMP/artifact.json" "$RUNNER_TEMP/run.json"
