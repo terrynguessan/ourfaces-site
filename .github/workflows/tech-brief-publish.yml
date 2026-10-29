@@ -139,7 +139,7 @@ jobs:
           APPROVED_DIGEST: ${{ inputs.approved_digest }}
           APPLIED_CORRECTIONS: ${{ steps.prepare.outputs.corrections_digest }}
         run: |
-          node scripts/tech-brief/automation.mjs check-changes --repo-dir . --edition "$EDITION" --approved-digest "$APPROVED_DIGEST"
+          node scripts/tech-brief/automation.mjs check-changes --repo-dir . --ledger-dir ledger --edition "$EDITION" --approved-digest "$APPROVED_DIGEST"
           git add src/content/tech-brief/latest.json "src/content/tech-brief/editions/$EDITION.json"
           MESSAGE="Publish Tech Brief edition $EDITION"
           if [ -n "$APPLIED_CORRECTIONS" ]; then
