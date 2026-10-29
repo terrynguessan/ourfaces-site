@@ -1,6 +1,83 @@
 {
   "schemaVersion": 1,
-  "edition": null,
-  "publishedOn": null,
-  "stories": []
+  "edition": "2026-10-24",
+  "publishedOn": "2026-10-25",
+  "stories": [
+    {
+      "id": "s1",
+      "category": "emerging-technology",
+      "url": "https://developers.googleblog.com/announcing-new-vllm-and-sglang-inference-engines-on-tpu/",
+      "publisher": "developers.googleblog.com",
+      "sourcePublishedOn": "2026-10-20",
+      "sourceHeadline": "Announcing New vLLM and SGLang Inference Engines on TPU",
+      "sourceHeadlineLang": "en",
+      "en": {
+        "headline": "Google launches native PyTorch backends for vLLM and SGLang",
+        "summary": "According to developers.googleblog.com, Google launched native PyTorch backends for vLLM and SGLang. TorchTPU makes TPU a native PyTorch device. TPU Sync reads device buffers behind PyTorch tensors directly, avoiding an extra host staging copy during transfer. Both engines run at scale in production with preview customers.",
+        "whyItMatters": "Teams serving models with vLLM or SGLang can now target TPUs while keeping PyTorch for customizing and debugging, instead of switching to the JAX-based backends, which Google says it will keep maintaining."
+      },
+      "fr": {
+        "headline": "Google lance des backends PyTorch natifs pour vLLM et SGLang",
+        "summary": "Selon developers.googleblog.com, Google a lancé des backends PyTorch natifs pour vLLM et SGLang. TorchTPU fait du TPU un périphérique PyTorch natif. TPU Sync lit directement les buffers du périphérique associés aux tenseurs PyTorch, évitant une copie intermédiaire supplémentaire sur l’hôte lors du transfert. Les deux moteurs fonctionnent à grande échelle en production chez des clients participant à la préversion.",
+        "whyItMatters": "Les équipes qui servent des modèles avec vLLM ou SGLang peuvent désormais cibler les TPU en gardant PyTorch pour personnaliser et déboguer, sans passer aux backends basés sur JAX, que Google dit continuer à maintenir."
+      }
+    },
+    {
+      "id": "s2",
+      "category": "tools-techniques",
+      "url": "https://blog.pragmaticengineer.com/the-pulse-anthropic-builds-its-own-source-control-system/",
+      "publisher": "The Pragmatic Engineer",
+      "sourcePublishedOn": "2026-10-22",
+      "sourceHeadline": "The Pulse: Anthropic builds its own source control system",
+      "sourceHeadlineLang": "en",
+      "en": {
+        "headline": "Anthropic moves its monorepo off Git with Scion",
+        "summary": "Anthropic built an internal source control system called Scion and has moved all of its monorepo off Git. Scion stores changesets in Google Spanner and blobs in Google Cloud Storage; its server and client are written in Rust. Anthropic also built Antique, a code review platform, to replace GitHub's.",
+        "whyItMatters": "For teams adopting coding agents, Anthropic's case shows source control itself can become the bottleneck: merged changes rose from about 2,500 a day in May to over 30,000 in September, and its Git mirrors stopped scaling once the repository outgrew their disks."
+      },
+      "fr": {
+        "headline": "Anthropic abandonne Git pour son monodépôt avec Scion",
+        "summary": "Anthropic a créé en interne un système de gestion de versions appelé Scion et a retiré la totalité de son monodépôt de Git. Scion stocke les ensembles de modifications dans Google Spanner et les blobs dans Google Cloud Storage ; son serveur et son client sont écrits en Rust. Anthropic a aussi créé Antique, une plateforme de revue de code qui remplace celle de GitHub.",
+        "whyItMatters": "Pour les équipes qui adoptent des agents de code, le cas d’Anthropic montre que la gestion de versions peut elle-même devenir le goulot d’étranglement : les modifications fusionnées sont passées d’environ 2 500 par jour en mai à plus de 30 000 en septembre, et ses miroirs Git ont cessé de suivre quand le dépôt a dépassé leurs disques."
+      }
+    },
+    {
+      "id": "s3",
+      "category": "applied-ai",
+      "url": "https://claude.com/resources/articles/claude-duet",
+      "publisher": "Claude",
+      "sourcePublishedOn": "2026-10-21",
+      "sourceHeadline": "Introducing Claude Duet",
+      "sourceHeadlineLang": "en",
+      "en": {
+        "headline": "Claude Duet research preview opens by waitlist to Pro and Max subscribers in the United States",
+        "summary": "Claude says Duet, a proactive agent app in research preview, checks connected accounts every few hours and asks for approval before sending messages, making payments, signing documents or deleting anything. Access is limited to Pro and Max subscribers in the United States who join a waitlist; Duet then runs as a standalone iOS and Android app or on claude.ai and shares the plan's usage limits.",
+        "whyItMatters": "Duet moves agent work into the background, so its guardrails matter: consequential actions wait for approval, some, such as trading securities, stay blocked even with approval, and background checks count against plan limits."
+      },
+      "fr": {
+        "headline": "Claude Duet ouvre sa préversion de recherche sur liste d’attente aux abonnés Pro et Max aux États-Unis",
+        "summary": "Claude indique que Duet, une application d’agent proactif en préversion de recherche, consulte les comptes connectés à quelques heures d’intervalle et demande une approbation avant d’envoyer des messages, d’effectuer des paiements, de signer des documents ou de supprimer quoi que ce soit. L’accès est réservé aux abonnés Pro et Max aux États-Unis inscrits sur une liste d’attente ; Duet fonctionne alors comme application autonome iOS et Android ou sur claude.ai et partage les limites d’utilisation de l’abonnement.",
+        "whyItMatters": "Duet fait passer le travail d’agent en arrière-plan, d’où l’importance de ses garde-fous : les actions engageantes attendent une approbation, certaines, comme les opérations sur titres, restent interdites même avec approbation, et les vérifications en arrière-plan comptent dans les limites de l’abonnement."
+      }
+    },
+    {
+      "id": "s4",
+      "category": "tools-techniques",
+      "url": "https://blog.sentry.io/when-you-need-a-metric/",
+      "publisher": "Sentry Blog",
+      "sourcePublishedOn": "2026-10-22",
+      "sourceHeadline": "Should you use a log or a metric?",
+      "sourceHeadlineLang": "en",
+      "en": {
+        "headline": "Sentry guide explains when to choose logs or application metrics",
+        "summary": "Sentry says logs suit debugging because they record what was true when something happened, while metrics answer questions a team chooses to track over time. The October guide covers Logs and Application Metrics, which Sentry added earlier; unlike sampled traces, both are kept unsampled. Shared attributes set on the scope, available since SDK v10.61.0, apply to both automatically.",
+        "whyItMatters": "Because traces are sampled and give only approximate counts, the guide helps developers decide which events need an exact log or metric, and which logs to keep elsewhere rather than paying to store the same data twice."
+      },
+      "fr": {
+        "headline": "Un guide de Sentry explique quand choisir les logs ou les métriques applicatives",
+        "summary": "Sentry explique que les logs servent au débogage, car ils consignent ce qui était vrai au moment d’un événement, tandis que les métriques répondent à des questions qu’une équipe choisit de suivre dans le temps. Ce guide d’octobre porte sur Logs et Application Metrics, que Sentry avait ajoutés auparavant ; contrairement aux traces échantillonnées, les deux sont conservés sans échantillonnage. Les attributs partagés définis sur le scope, disponibles depuis le SDK v10.61.0, s’appliquent automatiquement aux deux.",
+        "whyItMatters": "Comme les traces sont échantillonnées et ne donnent que des décomptes approximatifs, le guide aide les développeurs à choisir les événements qui méritent un log ou une métrique exacts, et les logs à garder ailleurs plutôt que de payer deux fois le stockage des mêmes données."
+      }
+    }
+  ]
 }
