@@ -552,12 +552,39 @@ export function checkApprovedFiles({
 }
 
 /**
+ * The ledger branch checked out inside the repository (the publish job's
+ * "ledger" path) must be the root of its own Git repository, with nothing
+ * under it tracked by the site. Returns the path for checkPublicationChanges.
+ */
+export function ledgerCheckout(repoDir, dir) {
+  const ownRoot = () => {
+    try {
+      return (
+        runGit(join(repoDir, dir), ["rev-parse", "--show-prefix"]).trim() === ""
+      );
+    } catch {
+      return false;
+    }
+  };
+  if (
+    !/^[a-z][a-z0-9-]*$/.test(dir) ||
+    !ownRoot() ||
+    runGit(repoDir, ["ls-files", "--", dir]).trim()
+  )
+    fail("LEDGER_CHECKOUT", `${dir} is not a separate ledger checkout`);
+  return dir;
+}
+
+/**
  * The working tree may differ from the commit only in this edition's public
  * files; latest.json must be among them. Returns the paths to commit.
+ * ledgerPath (from ledgerCheckout): Git shows that separate checkout as the
+ * single untracked entry "?? <path>/"; it is never committed, and any other
+ * change under it is still unexpected.
  */
 export function checkPublicationChanges(
   porcelain,
-  { edition, contentPath = "src/content/tech-brief" },
+  { edition, contentPath = "src/content/tech-brief", ledgerPath = null },
 ) {
   const allowed = new Set([
     `${contentPath}/latest.json`,
@@ -565,7 +592,10 @@ export function checkPublicationChanges(
   ]);
   const paths = porcelain
     .split("\n")
-    .filter((line) => line.trim())
+    .filter(
+      (line) =>
+        line.trim() && (ledgerPath === null || line !== `?? ${ledgerPath}/`),
+    )
     .map((line) => line.slice(3).trim().replace(/^"|"$/g, ""));
   const unexpected = paths.filter((p) => p.includes(" -> ") || !allowed.has(p));
   if (unexpected.length)
@@ -862,9 +892,14 @@ if (
       }
       case "check-changes": {
         const repoDir = option("--repo-dir") ?? ".";
+        const ledgerDir = option("--ledger-dir");
         const paths = checkPublicationChanges(
           runGit(repoDir, ["status", "--porcelain", "--untracked-files=all"]),
-          { edition: option("--edition") },
+          {
+            edition: option("--edition"),
+            ledgerPath:
+              ledgerDir === null ? null : ledgerCheckout(repoDir, ledgerDir),
+          },
         );
         const approved = checkApprovedFiles({
           contentDir: join(repoDir, "src/content/tech-brief"),

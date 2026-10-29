@@ -30,6 +30,7 @@ import {
   gate,
   gitIsAncestor,
   keysFromEnvironment,
+  ledgerCheckout,
   ledgerTransaction,
   planPublication,
   planResearch,
@@ -1219,6 +1220,165 @@ test("checkPublicationChanges allows only this edition's two public files", asyn
       await codeOf(() => checkPublicationChanges(porcelain, opts)),
       code,
       porcelain,
+    );
+});
+
+test("check-changes accepts the publish job's separate ledger checkout and still refuses every other change", async () => {
+  // Run 40950720100: the ledger branch is checked out at ./ledger, its own
+  // repository, which Git lists as "?? ledger/".
+  const ledger = ledgerRemote();
+  const site = siteRemote();
+  cloneLedger(ledger.remote, join(site.dir, "ledger"));
+  const text = `${JSON.stringify({ edition: EDITION })}\n`;
+  writeFileSync(join(site.content, "latest.json"), text);
+  mkdirSync(join(site.content, "editions"), { recursive: true });
+  writeFileSync(join(site.content, "editions", `${EDITION}.json`), text);
+  const digest = createHash("sha256").update(text).digest("hex");
+  const outputs = join(temp("cli"), "github-output");
+  const clean = Object.fromEntries(
+    Object.entries(process.env).filter(
+      ([k]) => !/^(GITHUB_|TECH_BRIEF_|OPENAI_)/.test(k),
+    ),
+  );
+  const check = (dir, flags = [], approved = digest) => {
+    const r = spawnSync(
+      process.execPath,
+      [
+        AUTOMATION,
+        "check-changes",
+        "--repo-dir",
+        dir,
+        ...flags,
+        "--edition",
+        EDITION,
+        "--approved-digest",
+        approved,
+      ],
+      {
+        env: {
+          ...clean,
+          GITHUB_OUTPUT: outputs,
+          TECH_BRIEF_AUTOMATION: "manual",
+        },
+        encoding: "utf8",
+      },
+    );
+    return { status: r.status, ...JSON.parse(r.stdout.trim()) };
+  };
+  const withLedger = ["--ledger-dir", "ledger"];
+  // The exact failure without the ledger path, and the fix with it.
+  assert.deepEqual(check(site.dir), {
+    status: 4,
+    ok: false,
+    code: "UNEXPECTED_CHANGES",
+    message: "Unexpected changes: ledger/",
+  });
+  const passed = check(site.dir, withLedger);
+  assert.deepEqual(
+    [passed.status, passed.approved_digest, passed.files.split(" ").sort()],
+    [
+      0,
+      digest,
+      [
+        "src/content/tech-brief/editions/2026-10-24.json",
+        "src/content/tech-brief/latest.json",
+      ],
+    ],
+  );
+  // The approved digest is still enforced.
+  assert.equal(
+    check(site.dir, withLedger, "0".repeat(64)).code,
+    "APPROVAL_MISMATCH",
+  );
+  // The workflow's commit contains the two public files only.
+  git(site.dir, "add", ...passed.files.split(" "));
+  git(site.dir, ...ME, "commit", "-q", "-m", "publish");
+  assert.deepEqual(
+    git(site.dir, "show", "--name-only", "--format=", "HEAD")
+      .trim()
+      .split("\n")
+      .sort(),
+    passed.files.split(" ").sort(),
+  );
+  git(site.dir, "reset", "-q", "--soft", "HEAD~1");
+  // Genuinely unexpected changes beside the ledger checkout are still refused.
+  writeFileSync(join(site.dir, "README.md"), "changed\n");
+  assert.equal(check(site.dir, withLedger).code, "UNEXPECTED_CHANGES");
+  git(site.dir, "checkout", "-q", "--", "README.md");
+  mkdirSync(join(site.dir, "research"));
+  writeFileSync(join(site.dir, "research", "report.json"), "{}\n");
+  const extra = check(site.dir, withLedger);
+  assert.deepEqual(
+    [extra.code, extra.message],
+    ["UNEXPECTED_CHANGES", "Unexpected changes: research/report.json"],
+  );
+  // The ledger path must name a separate repository the site does not track.
+  for (const dir of [
+    "",
+    ".",
+    "..",
+    "../ledger",
+    "ledger/",
+    "Ledger",
+    "missing",
+    "src",
+  ])
+    assert.equal(
+      check(site.dir, ["--ledger-dir", dir]).code,
+      "LEDGER_CHECKOUT",
+      dir,
+    );
+  assert.equal(ledgerCheckout(site.dir, "ledger"), "ledger");
+  // A plain folder is not a separate checkout, and Git lists its files.
+  const plain = siteRemote();
+  mkdirSync(join(plain.dir, "ledger"));
+  writeFileSync(join(plain.dir, "ledger", "ledger.jsonl"), "{}\n");
+  assert.equal(
+    await codeOf(() => ledgerCheckout(plain.dir, "ledger")),
+    "LEDGER_CHECKOUT",
+  );
+  assert.equal(
+    await codeOf(() =>
+      checkPublicationChanges(
+        git(plain.dir, "status", "--porcelain", "--untracked-files=all"),
+        { edition: EDITION, ledgerPath: "ledger" },
+      ),
+    ),
+    "UNEXPECTED_CHANGES",
+  );
+  // A repository inside a folder the site tracks is refused too.
+  git(plain.dir, "add", "ledger");
+  git(plain.dir, ...ME, "commit", "-q", "-m", "tracked ledger folder");
+  execFileSync("git", ["init", "-q", join(plain.dir, "ledger")]);
+  assert.equal(
+    await codeOf(() => ledgerCheckout(plain.dir, "ledger")),
+    "LEDGER_CHECKOUT",
+  );
+  // Only the exact untracked entry is accepted.
+  const ok =
+    " M src/content/tech-brief/latest.json\n?? src/content/tech-brief/editions/2026-10-24.json\n";
+  const opts = { edition: EDITION, ledgerPath: "ledger" };
+  assert.equal(checkPublicationChanges(`${ok}?? ledger/\n`, opts).length, 2);
+  for (const extraLine of [
+    "?? ledger/ledger.jsonl\n",
+    " M ledger/ledger.jsonl\n",
+    "A  ledger\n",
+    " M ledger\n",
+    "?? ledgers/\n",
+    "?? null/\n",
+  ])
+    assert.equal(
+      await codeOf(() => checkPublicationChanges(`${ok}${extraLine}`, opts)),
+      "UNEXPECTED_CHANGES",
+      extraLine,
+    );
+  for (const entry of ["?? ledger/\n", "?? null/\n"])
+    assert.equal(
+      await codeOf(() =>
+        checkPublicationChanges(`${ok}${entry}`, { edition: EDITION }),
+      ),
+      "UNEXPECTED_CHANGES",
+      entry,
     );
 });
 

@@ -453,8 +453,10 @@ test("editorial preview: manual, read-only, no OpenAI key; supervised publicatio
   );
   assert.match(
     publish,
-    /check-changes --repo-dir \. --edition "\$EDITION" --approved-digest "\$APPROVED_DIGEST"\n/,
+    /check-changes --repo-dir \. --ledger-dir ledger --edition "\$EDITION" --approved-digest "\$APPROVED_DIGEST"\n/,
   );
+  // The ledger checkout that check-changes accepts is the one at "ledger".
+  assert.match(publish, /\n {10}ref: tech-brief-ledger\n {10}path: ledger\n/);
 });
 
 test("editorial corrections: opt-in per manual dispatch, digest-bound, decoded privately and always removed", () => {
