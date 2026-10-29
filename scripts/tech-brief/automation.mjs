@@ -46,6 +46,7 @@ import {
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { keyId, parseKey, sealBundle } from "./bundle.mjs";
+import { correctionsDigest } from "./corrections.mjs";
 import { createFetcher } from "./fetch.mjs";
 import {
   findHandoff,
@@ -386,6 +387,7 @@ export async function sundayPrepare({
   write = true,
   approvedDigest = null,
   requireApproval = false,
+  corrections = null,
 }) {
   refuseRehearsalKey(keys);
   const handoff = resolveHandoff(ledgerState, edition);
@@ -410,6 +412,8 @@ export async function sundayPrepare({
     write,
     approvedDigest,
     requireApproval,
+    corrections,
+    handoff,
   });
   return {
     ...outcome,
@@ -417,6 +421,50 @@ export async function sundayPrepare({
     artifactId: handoff.artifactId,
     handoff,
   };
+}
+
+/**
+ * Editorial corrections for a Sunday run, checked before anything is read or
+ * decrypted. `use` is the workflow's use_corrections input ("true"; "false"
+ * or empty on a schedule), `text` the decoded corrections file (null or ""
+ * when none was written) and `expectedDigest` the corrections_digest input.
+ * Off: nothing may be supplied. On: manual dispatch only, a non-empty file and
+ * exactly the expected digest. Returns the text to apply, or null.
+ */
+export function correctionsInput({ event, use, text, expectedDigest }) {
+  const given = typeof text === "string" && text.length > 0;
+  const digest = expectedDigest ?? "";
+  if (use === "false" || use === "" || use === null || use === undefined) {
+    if (given || digest)
+      fail(
+        "CORRECTIONS_UNEXPECTED",
+        "Corrections or a corrections digest were supplied without use_corrections",
+      );
+    return null;
+  }
+  if (use !== "true")
+    fail("CORRECTIONS_FLAG", "use_corrections must be true or false");
+  if (event !== "workflow_dispatch")
+    fail(
+      "CORRECTIONS_NOT_MANUAL",
+      "Editorial corrections are only applied in a manual dispatch",
+    );
+  if (!given)
+    fail(
+      "CORRECTIONS_MISSING",
+      "use_corrections is true but no corrections were supplied",
+    );
+  if (!/^[0-9a-f]{64}$/.test(digest))
+    fail(
+      "CORRECTIONS_DIGEST_REQUIRED",
+      "use_corrections needs corrections_digest: the SHA-256 of the corrections file",
+    );
+  if (correctionsDigest(text) !== digest)
+    fail(
+      "CORRECTIONS_DIGEST_MISMATCH",
+      "The supplied corrections differ from the expected corrections digest",
+    );
+  return text;
 }
 
 /** Whether publication needs an editorial approval: always, unless automation is fully enabled. */
@@ -461,9 +509,18 @@ export async function previewSunday({
     stories: JSON.parse(outcome.text).stories.length,
     dropped: outcome.dropped.length,
     reviewerKeyId: reviewerKeyId(recipient),
+    corrections: outcome.corrections ?? null,
     sealed,
   };
 }
+
+/** Step outputs for an applied corrections document: digests and counts only, never text. */
+const correctionOutputs = (record) => ({
+  corrections_digest: record?.correctionsDigest ?? "",
+  original_digest: record?.originalDigest ?? "",
+  revised: record ? record.revised.length : 0,
+  excluded: record ? record.excluded.length : 0,
+});
 
 /**
  * Before the commit: the two public files must be byte-identical and, when an
@@ -582,6 +639,14 @@ if (
   const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
   // Inputs shared by sunday-prepare and preview (the same checks, the real clock).
   const sundayInputs = async () => {
+    // Editorial corrections first: refused before the ledger, bundle or keys are read.
+    const correctionsFile = option("--corrections");
+    const corrections = correctionsInput({
+      event: env.GITHUB_EVENT_NAME,
+      use: option("--use-corrections") ?? "false",
+      text: correctionsFile ? readFileSync(correctionsFile, "utf8") : null,
+      expectedDigest: option("--corrections-digest"),
+    });
     const repoDir = option("--repo-dir") ?? ".";
     const policy = await loadSourcePolicy(policyFile);
     const now = new Date();
@@ -600,6 +665,7 @@ if (
       fetcher: createFetcher({ sourcePolicy: policy }),
       contentDir: option("--content-dir"),
       now,
+      corrections,
     };
   };
   try {
@@ -754,6 +820,7 @@ if (
           files: outcome.files.join(" "),
           dropped: outcome.dropped.length,
           content_digest: outcome.contentDigest ?? "",
+          ...correctionOutputs(outcome.corrections),
         });
         break;
       }
@@ -781,6 +848,7 @@ if (
           edition: result.edition,
           stories: result.stories,
           dropped: result.dropped,
+          ...correctionOutputs(result.corrections),
           reviewer_key_id: result.reviewerKeyId,
           artifact_name: previewArtifactName(
             result.edition,

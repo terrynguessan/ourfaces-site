@@ -12,6 +12,11 @@
 # Supervised publication (TECH_BRIEF_AUTOMATION "manual"): approved_digest must
 # be the content digest of the editorial preview the editor approved
 # (tech-brief-preview.yml); any other content is refused and needs a new review.
+# Editorial corrections: only a manual dispatch with use_corrections=true
+# applies the environment secret TECH_BRIEF_CORRECTIONS (base64, decoded to a
+# private temporary file and removed afterwards); corrections_digest must be
+# its SHA-256 and approved_digest the content digest of the corrected preview.
+# Schedules never apply corrections.
 
 name: Tech Brief publication
 
@@ -31,6 +36,15 @@ on:
         default: ""
       approved_digest:
         description: "Supervised publication: the content digest of the approved editorial preview"
+        required: false
+        default: ""
+      use_corrections:
+        description: "Apply the editorial corrections in the TECH_BRIEF_CORRECTIONS environment secret"
+        type: boolean
+        required: false
+        default: false
+      corrections_digest:
+        description: "With use_corrections: the SHA-256 of the corrections file"
         required: false
         default: ""
 
@@ -101,26 +115,45 @@ jobs:
           APPROVED_DIGEST: ${{ inputs.approved_digest }}
           TECH_BRIEF_ARTIFACT_KEY: ${{ secrets.TECH_BRIEF_ARTIFACT_KEY }}
           TECH_BRIEF_ARTIFACT_KEY_PREVIOUS: ${{ secrets.TECH_BRIEF_ARTIFACT_KEY_PREVIOUS }}
+          USE_CORRECTIONS: ${{ inputs.use_corrections }}
+          CORRECTIONS_DIGEST: ${{ inputs.corrections_digest }}
+          TECH_BRIEF_CORRECTIONS: ${{ inputs.use_corrections && secrets.TECH_BRIEF_CORRECTIONS || '' }}
         run: |
+          CORRECTIONS_FILE=""
+          if [ "$USE_CORRECTIONS" = "true" ]; then
+            CORRECTIONS_FILE="$RUNNER_TEMP/corrections/corrections.json"
+            trap 'rm -rf "$RUNNER_TEMP/corrections"' EXIT
+            (umask 077 && mkdir -p "$RUNNER_TEMP/corrections" && printf '%s' "$TECH_BRIEF_CORRECTIONS" | base64 --decode > "$CORRECTIONS_FILE")
+          fi
+          unset TECH_BRIEF_CORRECTIONS
           node scripts/tech-brief/automation.mjs sunday-prepare --ledger-dir ledger --edition "$EDITION" \
             --artifact-json "$RUNNER_TEMP/artifact.json" --run-json "$RUNNER_TEMP/run.json" \
             --bundle-dir "$RUNNER_TEMP/bundle" --content-dir src/content/tech-brief --repo-dir . \
-            --approved-digest "$APPROVED_DIGEST"
+            --approved-digest "$APPROVED_DIGEST" \
+            --use-corrections "$USE_CORRECTIONS" --corrections "$CORRECTIONS_FILE" --corrections-digest "$CORRECTIONS_DIGEST"
       - name: Commit and push the public edition
         if: steps.prepare.outputs.status == 'prepared'
         env:
           EDITION: ${{ steps.plan.outputs.edition }}
           TECH_BRIEF_AUTOMATION: ${{ vars.TECH_BRIEF_AUTOMATION }}
           APPROVED_DIGEST: ${{ inputs.approved_digest }}
+          APPLIED_CORRECTIONS: ${{ steps.prepare.outputs.corrections_digest }}
         run: |
           node scripts/tech-brief/automation.mjs check-changes --repo-dir . --edition "$EDITION" --approved-digest "$APPROVED_DIGEST"
           git add src/content/tech-brief/latest.json "src/content/tech-brief/editions/$EDITION.json"
+          MESSAGE="Publish Tech Brief edition $EDITION"
+          if [ -n "$APPLIED_CORRECTIONS" ]; then
+            MESSAGE="$MESSAGE (editorial corrections $APPLIED_CORRECTIONS)"
+          fi
           git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-            commit -m "Publish Tech Brief edition $EDITION"
+            commit -m "$MESSAGE"
           git push origin HEAD:main
       - name: Restore the content folder after a failure
         if: failure()
         run: git checkout -- src/content/tech-brief && git clean -fd -- src/content/tech-brief
+      - name: Remove the decoded corrections
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/corrections"
 
   verify-live:
     needs: publish
