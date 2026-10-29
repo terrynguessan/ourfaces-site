@@ -10,7 +10,10 @@
 //   - the exact public file text that publication would write, and its
 //     SHA-256 (contentDigest), which is what the reviewer approves;
 //   - warning codes, and dropped stories (reasons plus their public fields);
-//   - identifiers of the research run, artifact and preview run.
+//   - identifiers of the research run, artifact and preview run;
+//   - for a corrected edition (corrections.mjs), the corrections digest, the
+//     uncorrected content digest and each correction's before/after public
+//     text, reasons, note and cited public quotes (null when uncorrected).
 // Research evidence (claims, quotes, editorial facets, costs) is never in it.
 //
 // Encryption: X25519 with a fresh ephemeral key per preview, HKDF-SHA256 over
@@ -67,12 +70,13 @@ import {
   serializeEdition,
 } from "./publish.mjs";
 import { isSaturdayDate } from "./schedule.mjs";
+import { renderCorrections } from "./corrections.mjs";
 
 export const PREVIEW_FORMAT = "ourfaces-tech-brief-preview";
 export const PREVIEW_VERSION = 1;
 export const PREVIEW_FILE = "editorial-preview.bin";
 export const REVIEWER_KEY_VARIABLE = "TECH_BRIEF_REVIEWER_PUBLIC_KEY";
-const PAYLOAD_FORMAT = "ourfaces-tech-brief-preview-payload/1";
+const PAYLOAD_FORMAT = "ourfaces-tech-brief-preview-payload/2";
 const MAGIC = Buffer.from("OFTBPREV", "ascii");
 const MAX_HEADER_BYTES = 512;
 const MAX_PAYLOAD_BYTES = 1024 * 1024;
@@ -237,6 +241,7 @@ export function previewProblems(payload) {
     "droppedStories",
     "source",
     "preview",
+    "corrections",
   ];
   if (
     Object.keys(payload).length !== keys.length ||
@@ -304,7 +309,49 @@ export function previewProblems(payload) {
     !(p.runAttempt === null || isId(p.runAttempt))
   )
     problems.push("preview");
+  if (payload.corrections !== null && correctionsProblem(payload, edition))
+    problems.push("corrections");
   return problems;
+}
+
+const strings = (o) =>
+  isObject(o) && Object.values(o).every((v) => typeof v === "string");
+/** True when a corrections summary is malformed or disagrees with the publication. */
+function correctionsProblem(payload, edition) {
+  const c = payload.corrections;
+  const digest = /^[0-9a-f]{64}$/;
+  if (
+    !isObject(c) ||
+    Object.keys(c).length !== 5 ||
+    !digest.test(c.correctionsDigest ?? "") ||
+    !digest.test(c.originalDigest ?? "") ||
+    !Array.isArray(c.revised) ||
+    !Array.isArray(c.excluded) ||
+    !Array.isArray(c.stories)
+  )
+    return true;
+  const ids = new Set(edition?.stories?.map((s) => s.id) ?? []);
+  return !c.stories.every(
+    (e) =>
+      isObject(e) &&
+      typeof e.storyId === "string" &&
+      ["revise", "exclude"].includes(e.action) &&
+      codes(e.reasons) &&
+      typeof e.note === "string" &&
+      Array.isArray(e.evidence) &&
+      e.evidence.every(
+        (q) => typeof q?.url === "string" && typeof q?.quote === "string",
+      ) &&
+      (e.action === "exclude"
+        ? e.before === null &&
+          e.after === null &&
+          c.excluded.includes(e.storyId) &&
+          !ids.has(e.storyId)
+        : c.revised.includes(e.storyId) &&
+          ["en", "fr"].every(
+            (l) => strings(e.before?.[l]) && strings(e.after?.[l]),
+          )),
+  );
 }
 
 /**
@@ -340,6 +387,9 @@ export function buildPreview({
       workflowRunId: previewRun.workflowRunId ?? null,
       runAttempt: previewRun.runAttempt ?? null,
     },
+    corrections: outcome.corrections
+      ? { ...outcome.corrections, stories: outcome.correctionReview }
+      : null,
   };
   const problems = previewProblems(payload);
   if (problems.length)
@@ -505,6 +555,7 @@ export function renderPreview(payload) {
     `Dropped by the Sunday source recheck: ${payload.dropped.length}`,
     `Research run ${payload.source.researchRunId}, workflow run ${payload.source.workflowRunId} attempt ${payload.source.runAttempt}, artifact ${payload.source.artifactId}`,
     `Preview prepared ${payload.createdAt}`,
+    `Editorial corrections: ${payload.corrections ? `${payload.corrections.revised.length} revised, ${payload.corrections.excluded.length} excluded (see the end)` : "none"}`,
   ];
   const story = (s, title) => {
     lines.push(
@@ -529,6 +580,12 @@ export function renderPreview(payload) {
     const reasons = payload.dropped.find((d) => d.id === s.id)?.reasons ?? [];
     story(s, `DROPPED, not in the publication (${reasons.join(", ")})`);
   }
+  if (payload.corrections)
+    lines.push(
+      "",
+      "=== EDITORIAL CORRECTIONS (before / after) ===",
+      renderCorrections(payload.corrections, payload.corrections.stories),
+    );
   lines.push(
     "",
     "To publish exactly this edition, dispatch the publication workflow with",

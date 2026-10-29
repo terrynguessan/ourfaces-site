@@ -287,8 +287,10 @@ test("secrets: the OpenAI key only in Saturday research; the artifact key only t
   assert.deepEqual([...new Set(uses)].sort(), [
     "preview.preview TECH_BRIEF_ARTIFACT_KEY",
     "preview.preview TECH_BRIEF_ARTIFACT_KEY_PREVIOUS",
+    "preview.preview TECH_BRIEF_CORRECTIONS",
     "publish.publish TECH_BRIEF_ARTIFACT_KEY",
     "publish.publish TECH_BRIEF_ARTIFACT_KEY_PREVIOUS",
+    "publish.publish TECH_BRIEF_CORRECTIONS",
     "research.research OPENAI_API_KEY",
     "research.research TECH_BRIEF_ARTIFACT_KEY",
   ]);
@@ -447,10 +449,89 @@ test("editorial preview: manual, read-only, no OpenAI key; supervised publicatio
   );
   assert.match(
     publish,
-    /sunday-prepare [^\n]*\\\n(?:[^\n]*\\\n)*[^\n]*--approved-digest "\$APPROVED_DIGEST"\n/,
+    /sunday-prepare [^\n]*\\\n(?:[^\n]*\\\n)*[^\n]*--approved-digest "\$APPROVED_DIGEST"(?: \\)?\n/,
   );
   assert.match(
     publish,
     /check-changes --repo-dir \. --edition "\$EDITION" --approved-digest "\$APPROVED_DIGEST"\n/,
   );
+});
+
+test("editorial corrections: opt-in per manual dispatch, digest-bound, decoded privately and always removed", () => {
+  for (const name of ["preview", "publish"]) {
+    const text = WORKFLOWS[name];
+    const job = jobs(text)[name];
+    // Opt-in inputs: a boolean that defaults to false, and the expected digest.
+    assert.match(
+      top(text),
+      /\n {6}use_corrections:\n {8}description: [^\n]+\n {8}type: boolean\n {8}required: false\n {8}default: false\n/,
+      name,
+    );
+    assert.match(top(text), /\n {6}corrections_digest:\n/, name);
+    // The secret reaches exactly one step, and only when use_corrections is true.
+    const steps = job.split(/\n {6}- /).slice(1);
+    const holders = steps.filter((s) =>
+      s.includes("secrets.TECH_BRIEF_CORRECTIONS"),
+    );
+    assert.equal(holders.length, 1, name);
+    const [step] = holders;
+    assert.equal(
+      (text.match(/secrets\.TECH_BRIEF_CORRECTIONS/g) ?? []).length,
+      1,
+    );
+    assert.match(
+      step,
+      /\n {10}TECH_BRIEF_CORRECTIONS: \$\{\{ inputs\.use_corrections && secrets\.TECH_BRIEF_CORRECTIONS \|\| '' \}\}\n/,
+    );
+    assert.match(step, /USE_CORRECTIONS: \$\{\{ inputs\.use_corrections \}\}/);
+    assert.match(
+      step,
+      /CORRECTIONS_DIGEST: \$\{\{ inputs\.corrections_digest \}\}/,
+    );
+    // Decoded into a private temporary folder, removed on exit, and never passed on to node.
+    const [script] = runScripts(step);
+    assert.match(script, /if \[ "\$USE_CORRECTIONS" = "true" \]; then\n/);
+    assert.match(script, /trap 'rm -rf "\$RUNNER_TEMP\/corrections"' EXIT\n/);
+    assert.match(
+      script,
+      /\(umask 077 && mkdir -p "\$RUNNER_TEMP\/corrections" && printf '%s' "\$TECH_BRIEF_CORRECTIONS" \| base64 --decode > "\$CORRECTIONS_FILE"\)\n/,
+    );
+    assert.ok(
+      script.indexOf("unset TECH_BRIEF_CORRECTIONS") < script.indexOf("node "),
+    );
+    assert.match(
+      script,
+      /--use-corrections "\$USE_CORRECTIONS" --corrections "\$CORRECTIONS_FILE" --corrections-digest "\$CORRECTIONS_DIGEST"\n/,
+    );
+    // Nothing prints, uploads or caches the corrections.
+    for (const s of runScripts(text))
+      for (const leak of [
+        /echo[^\n]*CORRECTIONS/,
+        /cat [^\n]*corrections/,
+        /set -x/,
+        /GITHUB_STEP_SUMMARY/,
+      ])
+        assert.ok(!leak.test(s), `${name}: ${leak}`);
+    assert.ok(!/path:[^\n]*corrections/.test(text), name);
+    assert.ok(!text.includes("actions/cache"), name);
+    // Always removed, even when an earlier step failed.
+    assert.match(
+      job,
+      /if: always\(\)\n\s+run: rm -rf [^\n]*"\$RUNNER_TEMP\/corrections"\n/,
+      name,
+    );
+  }
+  // Publication records the applied corrections digest in the commit message (a digest, never text).
+  const publish = jobs(WORKFLOWS.publish).publish;
+  assert.match(
+    publish,
+    /APPLIED_CORRECTIONS: \$\{\{ steps\.prepare\.outputs\.corrections_digest \}\}/,
+  );
+  assert.match(
+    publish,
+    /MESSAGE="\$MESSAGE \(editorial corrections \$APPLIED_CORRECTIONS\)"/,
+  );
+  // Research, rehearsal and CI never see corrections.
+  for (const name of ["research", "rehearsal", "ci"])
+    assert.ok(!/corrections/i.test(WORKFLOWS[name]), name);
 });

@@ -39,6 +39,13 @@
 //     one; without requireApproval (automated mode) a given digest is still
 //     enforced.
 //
+// Editorial corrections (corrections.mjs), optional: a document bound to the
+// handoff and to the uncorrected content is applied to a copy of the draft
+// after step 1. Steps 4 and 5 still check the uncorrected research result;
+// step 5 also validates the corrected edition, step 6 rechecks the corrected
+// stories and every quote the corrections cite, and step 8 needs an approved
+// digest for any write of corrected content, whatever requireApproval says.
+//
 // Writing: both files are written to temporary files first, then renamed:
 // the archive copy, then latest.json. An existing archive copy for the edition
 // must be byte-identical (an interrupted earlier run) or the preparation is
@@ -66,6 +73,11 @@ import {
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { BundleError, checkResearchPair } from "./bundle.mjs";
+import {
+  CorrectionError,
+  applyCorrections,
+  verifyCorrectionSupport,
+} from "./corrections.mjs";
 import { stageDecision } from "./schedule.mjs";
 import { containsQuote } from "./text.mjs";
 import {
@@ -282,6 +294,10 @@ const removeQuietly = (path) => {
  * public fields of any dropped stories (`droppedStories`), for the editorial
  * preview. `approvedDigest` is the contentDigest a reviewer approved;
  * `requireApproval` refuses a write without one.
+ * `corrections` is the exact text of an editorial corrections document and
+ * `handoff` the ledger handoff the research result was opened with; corrected
+ * results also report `excluded` and `corrections` (digests and story ids)
+ * and, when checked, `correctionReview` (before/after text and evidence).
  * `rename` exists so tests can make the final file replacement fail.
  */
 export async function preparePublication({
@@ -296,6 +312,8 @@ export async function preparePublication({
   write = true,
   approvedDigest = null,
   requireApproval = false,
+  corrections = null,
+  handoff = null,
   rename = renameSync,
 }) {
   // 8 (checked first, before any fetch): an approval, when given, is a digest.
@@ -304,7 +322,11 @@ export async function preparePublication({
       "APPROVAL_INVALID",
       "The approved digest must be 64 lowercase hexadecimal characters",
     );
-  if (write && requireApproval && approvedDigest === null)
+  if (
+    write &&
+    (requireApproval || corrections !== null) &&
+    approvedDigest === null
+  )
     fail(
       "APPROVAL_REQUIRED",
       "Supervised publication needs the content digest of the approved editorial preview",
@@ -335,6 +357,40 @@ export async function preparePublication({
       "The research ran without an approved source policy",
     );
   const { edition } = identity;
+
+  // Editorial corrections: bound to this research result and its content.
+  let applied = null;
+  if (corrections !== null) {
+    try {
+      applied = applyCorrections({
+        text: corrections,
+        draft,
+        report,
+        handoff,
+        originalDigestOf: (d) =>
+          contentDigest(serializeEdition(publicEdition(d))),
+      });
+    } catch (error) {
+      if (error instanceof CorrectionError)
+        fail(error.code, error.message, error.details);
+      throw error;
+    }
+  }
+  const working = applied ? applied.draft : draft;
+  if (applied && working.stories.length < config.limits.minStories)
+    fail(
+      "INSUFFICIENT_STORIES",
+      `${working.stories.length} stories remain after the corrections (need ${config.limits.minStories})`,
+    );
+  if (
+    applied &&
+    new Set(working.stories.map((s) => s.category)).size <
+      config.limits.minCategories
+  )
+    fail(
+      "INSUFFICIENT_CATEGORIES",
+      `The stories remaining after the corrections cover fewer than ${config.limits.minCategories} categories`,
+    );
 
   // 2. Published state.
   const state = readPublishedState(contentDir);
@@ -395,13 +451,24 @@ export async function preparePublication({
       full.errors.map((e) => `${e.code} ${e.path}`).join("; "),
       { codes: full.errors.map((e) => e.code) },
     );
+  const corrected = applied
+    ? validateEdition(working, { policy, now, history })
+    : full;
+  if (!corrected.ok)
+    fail(
+      "VALIDATION_FAILED",
+      corrected.errors.map((e) => `${e.code} ${e.path}`).join("; "),
+      { codes: corrected.errors.map((e) => e.code) },
+    );
 
   // 6. Sunday source recheck.
   const kept = [];
   const dropped = [];
   const articles = {};
-  const warnings = new Set(full.warnings.map((w) => w.code));
-  for (const [i, story] of draft.stories.entries()) {
+  const warnings = new Set(
+    [...full.warnings, ...corrected.warnings].map((w) => w.code),
+  );
+  for (const [i, story] of working.stories.entries()) {
     const fetched = await fetcher.fetchArticle(story.url);
     const reasons = [];
     if (!fetched?.ok)
@@ -416,12 +483,44 @@ export async function preparePublication({
         if (!containsQuote(fetched.article.text, e.quote))
           reasons.push(`QUOTE_NOT_FOUND:${e.claimId}`);
     }
+    // A revision the recheck rejects while the original text passes is a bad
+    // correction: refuse it rather than drop the story.
+    if (
+      reasons.length &&
+      fetched?.ok &&
+      applied?.record.revised.includes(story.id)
+    ) {
+      const original = draft.stories.find((s) => s.id === story.id);
+      const before = verifyAgainstArticle(original, fetched, {
+        path: `stories[${i}]`,
+      });
+      if (before.errors.length === 0)
+        fail(
+          "CORRECTION_UNSUPPORTED",
+          `The correction of ${story.id} fails the source recheck: ${[...new Set(reasons)].join(", ")}`,
+          { problems: reasons },
+        );
+    }
     if (reasons.length)
       dropped.push({ id: story.id, reasons: [...new Set(reasons)] });
     else {
       kept.push(story);
       articles[story.id] = fetched;
     }
+  }
+  // Every cited quote must still be on its page; revised text adds no figures.
+  if (applied) {
+    const unsupported = await verifyCorrectionSupport({
+      applied,
+      original: draft,
+      articles,
+      fetchArticle: (url) => fetcher.fetchArticle(url),
+    });
+    if (unsupported.length)
+      fail("CORRECTION_UNSUPPORTED", unsupported.join("; "), {
+        problems: unsupported,
+        dropped,
+      });
   }
   if (kept.length < config.limits.minStories)
     fail(
@@ -435,7 +534,7 @@ export async function preparePublication({
       `The remaining stories cover fewer than ${config.limits.minCategories} categories`,
       { dropped },
     );
-  const final = { ...draft, stories: kept };
+  const final = { ...working, stories: kept };
   const recheck = validateEdition(final, { policy, now, history, articles });
   if (!recheck.ok)
     fail(
@@ -456,6 +555,10 @@ export async function preparePublication({
     warnings: [...warnings].sort(),
     contentDigest: contentDigest(text),
   };
+  if (applied) {
+    result.excluded = applied.excluded;
+    result.corrections = applied.record;
+  }
 
   // 8. Editorial approval: exactly the reviewed content, or nothing.
   if (approvedDigest !== null && result.contentDigest !== approvedDigest)
@@ -467,8 +570,8 @@ export async function preparePublication({
   if (!write) {
     const droppedIds = new Set(dropped.map((d) => d.id));
     const droppedStories = publicEdition({
-      ...draft,
-      stories: draft.stories.filter((s) => droppedIds.has(s.id)),
+      ...working,
+      stories: working.stories.filter((s) => droppedIds.has(s.id)),
     }).stories;
     return {
       status: "checked",
@@ -476,6 +579,7 @@ export async function preparePublication({
       archiveCreated: false,
       text,
       droppedStories,
+      ...(applied ? { correctionReview: applied.review } : {}),
     };
   }
 

@@ -687,6 +687,118 @@ test("publication after a preview: supervised mode needs the approved digest and
   );
 });
 
+test("editorial corrections through the Sunday wiring: bound to the ledger handoff, previewed, then published only as approved", async () => {
+  const story = STORIES[2];
+  const research = LEDGER.research.draft.stories[2];
+  const corrections = (basis = {}) =>
+    JSON.stringify({
+      format: "ourfaces-tech-brief-corrections/1",
+      edition: EDITION,
+      basis: {
+        researchRunId: "run-1a2b3c4d",
+        workflowRunId: RUN_ID,
+        runAttempt: 1,
+        artifactId: ARTIFACT_ID,
+        bundleDigest: LEDGER.sealed.digest,
+        originalDigest: PAYLOAD.contentDigest,
+        ...basis,
+      },
+      corrections: [
+        {
+          storyId: story.id,
+          action: "revise",
+          reasons: ["WHY_IT_MATTERS"],
+          note: "Say who benefits.",
+          evidence: [
+            { url: story.url, quote: research.evidence.verification[1].quote },
+          ],
+          text: {
+            en: {
+              whyItMatters:
+                "Developers working in large monorepos can rerun checks after small edits up to four times faster, which shortens local feedback.",
+            },
+            fr: {
+              whyItMatters:
+                "Les développeurs qui travaillent dans de grands monodépôts peuvent relancer les vérifications après de petites modifications jusqu’à quatre fois plus vite, ce qui raccourcit le retour en local.",
+            },
+          },
+        },
+      ],
+    });
+  const text = corrections();
+  const corrected = await previewSunday({
+    ...inputs(),
+    reviewerPublicKey: REVIEWER.publicKey,
+    previewRun: { workflowRunId: 9200000002, runAttempt: 1 },
+    corrections: text,
+  });
+  assert.equal(corrected.status, "checked");
+  assert.deepEqual(corrected.corrections.revised, [story.id]);
+  const payload = openPreview(corrected.sealed.bytes, REVIEWER_PRIVATE);
+  assert.equal(payload.corrections.originalDigest, PAYLOAD.contentDigest);
+  assert.equal(
+    payload.corrections.correctionsDigest,
+    createHash("sha256").update(text).digest("hex"),
+  );
+  assert.notEqual(payload.contentDigest, PAYLOAD.contentDigest);
+  // The uncorrected preview is unchanged by any of this.
+  assert.equal(PAYLOAD.corrections, null);
+
+  // A document for another bundle (same edition) is refused before anything is used.
+  assert.equal(
+    await codeOf(() =>
+      previewSunday({
+        ...inputs(),
+        reviewerPublicKey: REVIEWER.publicKey,
+        corrections: corrections({ bundleDigest: "0".repeat(64) }),
+      }),
+    ),
+    "CORRECTION_BASIS",
+  );
+  // Publication: corrections need the corrected digest, even in automated mode.
+  const publish = (args) =>
+    sundayPrepare({
+      ...inputs({ contentDir: contentCopy() }),
+      trigger: "manual",
+      corrections: text,
+      ...args,
+    });
+  assert.equal(await codeOf(() => publish({})), "APPROVAL_REQUIRED");
+  assert.equal(
+    await codeOf(() =>
+      publish({ approvedDigest: PAYLOAD.contentDigest, requireApproval: true }),
+    ),
+    "APPROVAL_MISMATCH",
+  );
+  const dir = contentCopy();
+  const outcome = await sundayPrepare({
+    ...inputs({ contentDir: dir }),
+    trigger: "manual",
+    corrections: text,
+    approvedDigest: payload.contentDigest,
+    requireApproval: true,
+  });
+  assert.equal(outcome.status, "prepared");
+  assert.equal(
+    readFileSync(join(dir, "latest.json"), "utf8"),
+    payload.publication,
+  );
+  assert.equal(
+    checkApprovedFiles({
+      contentDir: dir,
+      edition: EDITION,
+      approvedDigest: payload.contentDigest,
+      requireApproval: true,
+    }),
+    payload.contentDigest,
+  );
+  // The sealed research bundle is never rewritten.
+  assert.equal(
+    createHash("sha256").update(LEDGER.sealed.bytes).digest("hex"),
+    LEDGER.sealed.digest,
+  );
+});
+
 // --- CLI -------------------------------------------------------------------------------------
 
 const clean = Object.fromEntries(
