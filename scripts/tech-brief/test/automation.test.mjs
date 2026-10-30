@@ -50,6 +50,7 @@ import {
   settlementSummary,
 } from "../ledger.mjs";
 import { bundleArtifactName, workflowRefOf } from "../provenance.mjs";
+import { EMPTY_EDITION, serializeEdition } from "../publish.mjs";
 import {
   REHEARSAL_RUN_ID,
   REHEARSAL_WORKFLOW_PATH,
@@ -93,9 +94,6 @@ const EXPECTED = Object.freeze({
   branch: "main",
   events: ["schedule", "workflow_dispatch"],
 });
-const CONTENT = fileURLToPath(
-  new URL("../../../src/content/tech-brief/", import.meta.url),
-);
 const AUTOMATION = fileURLToPath(new URL("../automation.mjs", import.meta.url));
 const REHEARSAL = fileURLToPath(new URL("../rehearsal.mjs", import.meta.url));
 
@@ -108,6 +106,11 @@ const codeOf = async (fn) => {
   return "NO_ERROR";
 };
 const temp = (name) => mkdtempSync(join(tmpdir(), `tb-auto-${name}-`));
+// The content folder before any publication (the empty placeholder edition),
+// in a temporary directory: these tests publish synthetic editions and must
+// not depend on what the site has published since.
+const CONTENT = temp("content");
+writeFileSync(join(CONTENT, "latest.json"), serializeEdition(EMPTY_EDITION));
 
 // --- Local Git remotes ---------------------------------------------------------------------
 

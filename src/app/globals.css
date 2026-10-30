@@ -924,92 +924,354 @@ h3 {
   font-weight: 800;
 }
 
-.tech-brief-grid {
+/* Insights: the OurFaces Tech Brief publication. A lead story, supporting
+   cards and a collapsible archive, all on cream cards with green accents. */
+.insights-masthead {
+  padding: 76px 0 30px;
+}
+
+.insights-masthead h1 {
+  margin: 0;
+  font-size: clamp(46px, 6vw, 68px);
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+.insights-publication {
+  margin: 12px 0 0;
+  color: var(--green);
+  font-size: clamp(18px, 2vw, 22px);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.insights-edition {
+  padding: 0 0 66px;
+}
+
+.insights-edition-title {
+  margin: 0 0 22px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.4;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.insights-edition-title time {
+  color: var(--ink);
+}
+
+.insights-empty {
+  margin: 0;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 18px;
+}
+
+.brief-story {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 28px;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  background: rgba(255, 253, 248, 0.92);
+  box-shadow: 0 12px 34px rgba(20, 45, 34, 0.04);
+  overflow-wrap: break-word;
+}
+
+.brief-story p {
+  margin: 0;
+}
+
+.brief-category,
+.brief-why-label {
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.4;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.brief-category {
+  color: var(--gold-text);
+}
+
+.brief-story h3 {
+  margin: 10px 0 0;
+  font-size: 21px;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.brief-story .brief-summary {
+  margin-top: 12px;
+  color: var(--muted);
+}
+
+.brief-story-notes {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.brief-why {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.brief-why-label {
+  color: var(--green);
+}
+
+.brief-story .brief-why-label + p {
+  margin-top: 6px;
+  color: #3f5047;
+}
+
+.brief-story .brief-source {
+  margin-top: auto;
+  padding-top: 18px;
+}
+
+.brief-source {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* Inline padding enlarges the tap area without moving the surrounding text. */
+.brief-source a {
+  padding-block: 4px;
+  color: var(--green-deep);
+  font-weight: 750;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.brief-source a:hover {
+  color: var(--green);
+}
+
+.brief-source time {
+  white-space: nowrap;
+}
+
+/* Lead story: a green top rule, larger type and "why it matters" set apart. */
+.brief-story-lead {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  gap: 44px;
+  padding: 44px;
+  border-radius: var(--radius);
+  background:
+    linear-gradient(var(--green), var(--green)) top / 100% 5px no-repeat,
+    rgba(255, 253, 248, 0.94);
+  box-shadow: 0 18px 50px rgba(20, 45, 34, 0.07);
+}
+
+.brief-story-lead h3 {
+  margin-top: 14px;
+  font-size: clamp(30px, 3.4vw, 42px);
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+}
+
+.brief-story-lead .brief-summary {
+  margin-top: 18px;
+  font-size: 18px;
+  line-height: 1.65;
+}
+
+.brief-story-lead .brief-why {
+  margin-top: 0;
+  padding: 24px;
+  border-top: 0;
+  border-radius: 18px;
+  background: rgba(15, 90, 60, 0.06);
+}
+
+.brief-story-lead .brief-why-label + p {
+  margin-top: 8px;
+  color: var(--ink);
+  font-size: 17px;
+}
+
+/* Supporting cards: two columns, or three when they fill whole rows. A last
+   odd card spans the row so no card sits alone beside a gap. */
+.brief-cards {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 26px;
+  gap: 18px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
 }
 
-.brief-item {
-  padding: 20px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+.brief-cards > li:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
 }
 
-.brief-item strong {
-  display: block;
-  margin-bottom: 5px;
-  color: white;
+.brief-cards.three-up {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-/* Weekly Tech Brief edition: stories reuse the .brief-item card on the green
-   band. Labels are white because gold-light falls below 4.5:1 on the card tint. */
-.tech-brief-edition {
-  margin-top: 26px;
+.brief-cards.three-up > li:last-child:nth-child(odd) {
+  grid-column: auto;
 }
 
-.tech-brief-edition-title {
-  margin: 0.225em 0 calc(14px + 0.225em);
-  font-size: 22px;
+.insights-archive {
+  padding: 0 0 66px;
+}
+
+/* The last section sits directly above the footer, with the same gap the
+   contact band leaves on other pages. */
+.insights-edition:last-child,
+.insights-archive:last-child {
+  padding-bottom: 78px;
+}
+
+.insights-archive h2 {
+  margin: 0 0 8px;
+  padding-top: 30px;
+  border-top: 1px solid var(--line);
+  font-size: clamp(26px, 3vw, 34px);
   line-height: 1.15;
   letter-spacing: -0.03em;
 }
 
-.tech-brief-stories {
-  display: grid;
-  gap: 14px;
+.brief-archive,
+.brief-archive-stories {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.tech-brief-category {
-  display: block;
-  line-height: 1.4;
-  color: white;
-  font-size: 12px;
-  font-weight: 850;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
+.brief-archive > li {
+  border-bottom: 1px solid var(--line);
 }
 
-.tech-brief-story h4 {
-  margin: 8px 0 0;
-  font-size: 20px;
-  line-height: 1.25;
-  letter-spacing: -0.02em;
-}
-
-.tech-brief-story h4,
-.tech-brief-story p {
-  overflow-wrap: anywhere;
-}
-
-.tech-brief-story p {
-  margin: 10px 0 0;
-}
-
-.tech-brief-label {
-  color: white;
+.brief-archive summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 16px;
+  min-block-size: 56px;
+  padding: 10px 4px;
+  list-style: none;
   font-weight: 800;
+  cursor: pointer;
 }
 
-.tech-brief-source {
+.brief-archive summary::-webkit-details-marker {
+  display: none;
+}
+
+.brief-archive summary::after {
+  content: "";
+  width: 9px;
+  height: 9px;
+  margin: 0 6px 4px auto;
+  border-right: 2px solid var(--green);
+  border-bottom: 2px solid var(--green);
+  transform: rotate(45deg);
+}
+
+.brief-archive details[open] summary::after {
+  margin-bottom: -4px;
+  transform: rotate(-135deg);
+}
+
+.brief-archive summary:hover time {
+  color: var(--green);
+}
+
+.brief-archive summary:focus-visible {
+  outline: 3px solid var(--green-deep);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+.brief-archive-count {
+  color: var(--muted);
   font-size: 14px;
+  font-weight: 700;
 }
 
-.tech-brief-source time {
-  white-space: nowrap;
+.brief-archive-stories {
+  display: grid;
+  gap: 16px;
+  padding: 4px 4px 24px;
 }
 
-.tech-brief-source a {
-  color: white;
+.brief-archive-stories p {
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+.brief-archive-headline {
   font-weight: 750;
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
+  line-height: 1.35;
+}
+
+.brief-archive-stories .brief-source {
+  margin-top: 4px;
+}
+
+@media (max-width: 1000px) {
+  .brief-story-lead {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 26px;
+    padding: 36px;
+  }
+
+  .brief-cards.three-up {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .brief-cards.three-up > li:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .insights-masthead {
+    padding: 50px 0 24px;
+  }
+
+  .insights-edition,
+  .insights-archive {
+    padding-bottom: 54px;
+  }
+
+  .brief-story,
+  .brief-story-lead {
+    padding: 24px;
+    border-radius: 22px;
+  }
+
+  .brief-story-lead .brief-summary {
+    font-size: 17px;
+  }
+
+  .brief-story-lead .brief-why {
+    padding: 20px;
+  }
+
+  .brief-story-lead .brief-why-label + p {
+    font-size: 16px;
+  }
+
+  .brief-cards,
+  .brief-cards.three-up {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .company-block {
@@ -1457,7 +1719,6 @@ h3 {
   .panel-grid,
   .split-band,
   .topic-strip,
-  .tech-brief-grid,
   .principles,
   .opportunity-list,
   .company-block,
