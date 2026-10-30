@@ -9,7 +9,7 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "next": "latest",
+    "next": "^16.4.1",
     "nodemailer": "latest",
     "react": "latest",
     "react-dom": "latest"
