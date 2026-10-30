@@ -10,6 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
+import { EMPTY_EDITION } from "../publish.mjs";
 import { checkSchema } from "../validate.mjs";
 import { fixtureJson } from "./helpers.mjs";
 
@@ -41,16 +42,34 @@ rmSync(dir, { recursive: true, force: true });
 const valid = () => fixtureJson("valid-edition.json");
 const ch = (code) => String.fromCharCode(code);
 
-test("the committed latest.json is the empty edition and both validators reject it", () => {
+const EMPTY = Object.freeze({
+  schemaVersion: 1,
+  edition: null,
+  publishedOn: null,
+  stories: [],
+});
+
+test("the empty placeholder edition is rejected by both validators", () => {
+  assert.deepEqual(EMPTY_EDITION, EMPTY);
+  assert.equal(site.parseEdition(EMPTY), null);
+  assert.ok(checkSchema(EMPTY).length > 0);
+});
+
+// The committed file changes with every publication, so this checks only what
+// must always hold: it is the placeholder, or an edition both validators accept.
+test("the committed latest.json is the empty placeholder or an edition both validators accept", () => {
   const latest = JSON.parse(readFileSync(LATEST, "utf8"));
-  assert.deepEqual(latest, {
-    schemaVersion: 1,
-    edition: null,
-    publishedOn: null,
-    stories: [],
-  });
-  assert.equal(site.parseEdition(latest), null);
-  assert.ok(checkSchema(latest).length > 0);
+  if (latest.edition === null) {
+    assert.deepEqual(latest, EMPTY);
+    assert.equal(site.parseEdition(latest), null);
+    assert.ok(checkSchema(latest).length > 0);
+    return;
+  }
+  assert.deepEqual(checkSchema(latest), []);
+  const parsed = site.parseEdition(latest);
+  assert.ok(parsed);
+  assert.equal(parsed.edition, latest.edition);
+  assert.equal(parsed.stories.length, latest.stories.length);
 });
 
 test("a pipeline-valid edition renders on the site unchanged", () => {

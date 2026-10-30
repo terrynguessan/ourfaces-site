@@ -51,7 +51,7 @@ import {
   sealPreview,
 } from "../preview.mjs";
 import { bundleArtifactName, workflowRefOf } from "../provenance.mjs";
-import { contentDigest } from "../publish.mjs";
+import { EMPTY_EDITION, contentDigest, serializeEdition } from "../publish.mjs";
 import {
   REHEARSAL_WORKFLOW_PATH,
   fixtureFetcher,
@@ -85,7 +85,6 @@ const EXPECTED = Object.freeze({
 const RUN_ID = 9100000001;
 const ARTIFACT_ID = 4100000001;
 const REPOSITORY = fileURLToPath(new URL("../../../", import.meta.url));
-const CONTENT = join(REPOSITORY, "src/content/tech-brief");
 const AUTOMATION = fileURLToPath(new URL("../automation.mjs", import.meta.url));
 const PREVIEW = fileURLToPath(new URL("../preview.mjs", import.meta.url));
 const REVIEWER = generateReviewerKeyPair();
@@ -93,6 +92,11 @@ const REVIEWER_PRIVATE = parseReviewerPrivateKey(REVIEWER.privateKeyPem);
 const STRANGER = generateReviewerKeyPair();
 
 const temp = (name) => mkdtempSync(join(tmpdir(), `tb-preview-${name}-`));
+// The content folder before any publication (the empty placeholder edition),
+// in a temporary directory: these tests preview and publish synthetic editions
+// and must not depend on what the site has published since.
+const CONTENT = temp("content");
+writeFileSync(join(CONTENT, "latest.json"), serializeEdition(EMPTY_EDITION));
 const BASE64 =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 /** The same bytes with the unused low bits of the last base64 digit set. */
