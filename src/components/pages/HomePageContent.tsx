@@ -4,6 +4,8 @@ import SectionHeading from "@/components/SectionHeading";
 import ContactCta from "@/components/ContactCta";
 import type { Locale } from "@/lib/i18n";
 import { localizedPath } from "@/lib/i18n";
+import { formatEditionDate, getLatestEdition } from "@/lib/techBrief";
+import { techBriefCategoryLabels } from "@/lib/techBriefLabels";
 
 const copy = {
   en: {
@@ -34,15 +36,11 @@ const copy = {
     practicalCopy: "We focus on useful, understandable, and maintainable solutions that address real needs rather than technology for its own sake.",
     evolveTitle: "Built to evolve",
     evolveCopy: "We take a measured approach—learning, validating, and expanding capabilities as needs and opportunities develop.",
-    insights: "Insights",
-    ideasWorthSharing: "Ideas worth sharing.",
-    insightsCopy: "OurFaces shares selected insights on emerging technologies, software development, coding practices, AI-assisted workflows, and tools worth watching.",
-    insightTopicsLabel: "Insight topics",
-    emergingTechnology: "Emerging Technology",
-    developmentPractices: "Development Practices",
-    toolsTechniques: "Tools & Techniques",
+    briefKicker: "Insights / OurFaces Tech Brief",
+    briefTitle: "Technology worth knowing.",
+    latestEdition: "Latest edition",
+    readLatestBrief: "Read the latest Tech Brief",
     exploreInsights: "Explore Insights",
-    techBriefComing: "OurFaces Tech Brief — Coming Soon",
     aboutKicker: "About OurFaces",
     aboutTitle: "Built for practical solutions and long-term possibilities.",
     aboutCopy: "OurFaces Import & Export, LLC is a business focused on practical technology, business opportunities, and long-term value creation. We continue to evolve our capabilities while maintaining a flexible approach to future partnerships and markets.",
@@ -78,15 +76,11 @@ const copy = {
     practicalCopy: "Nous privilégions des solutions utiles, compréhensibles et faciles à maintenir, qui répondent à des besoins réels plutôt que la technologie pour elle-même.",
     evolveTitle: "Conçu pour évoluer",
     evolveCopy: "Nous avançons avec mesure : apprendre, valider et élargir nos capacités à mesure que les besoins et les opportunités évoluent.",
-    insights: "Perspectives",
-    ideasWorthSharing: "Des idées qui méritent d’être partagées.",
-    insightsCopy: "OurFaces partage une sélection d’analyses sur les technologies émergentes, le développement logiciel, les pratiques de programmation, les flux de travail assistés par l’IA et les outils à suivre.",
-    insightTopicsLabel: "Sujets d’analyse",
-    emergingTechnology: "Technologies émergentes",
-    developmentPractices: "Pratiques de développement",
-    toolsTechniques: "Outils et techniques",
+    briefKicker: "Perspectives / OurFaces Tech Brief",
+    briefTitle: "Les technologies à connaître.",
+    latestEdition: "Dernière édition",
+    readLatestBrief: "Lire le dernier Tech Brief",
     exploreInsights: "Découvrir les perspectives",
-    techBriefComing: "OurFaces Tech Brief — Bientôt disponible",
     aboutKicker: "À propos d’OurFaces",
     aboutTitle: "Conçu pour des solutions pratiques et des possibilités à long terme.",
     aboutCopy: "OurFaces Import & Export, LLC est une entreprise axée sur la technologie pratique, les opportunités commerciales et la création de valeur à long terme. Nous continuons à développer nos capacités tout en conservant une approche souple à l’égard des futurs partenariats et marchés.",
@@ -98,6 +92,10 @@ const copy = {
 
 export default function HomePageContent({ locale }: { locale: Locale }) {
   const t = copy[locale];
+  // The latest published edition, read at build time: each publication
+  // commit redeploys the site, so this preview follows it automatically.
+  const edition = getLatestEdition();
+  const leadStory = edition?.stories[0];
 
   return (
     <div lang={locale}>
@@ -164,20 +162,31 @@ export default function HomePageContent({ locale }: { locale: Locale }) {
         </div>
       </section>
 
-      <section className="shell content-section compact">
-        <div className="feature-panel">
-          <div className="kicker">{t.insights}</div>
-          <h2>{t.ideasWorthSharing}</h2>
-          <p>{t.insightsCopy}</p>
-          <div className="topic-strip" aria-label={t.insightTopicsLabel}>
-            <div className="topic-card">{t.emergingTechnology}</div>
-            <div className="topic-card">{t.developmentPractices}</div>
-            <div className="topic-card">{t.toolsTechniques}</div>
+      <section className="shell content-section compact" aria-labelledby="home-brief-title">
+        <div className="feature-panel home-brief">
+          <div className="home-brief-intro">
+            <div className="kicker">{t.briefKicker}</div>
+            <h2 id="home-brief-title">{t.briefTitle}</h2>
+            {edition && leadStory ? (
+              <p className="home-brief-edition">
+                {t.latestEdition} · <time dateTime={edition.publishedOn}>{formatEditionDate(edition.publishedOn, locale)}</time>
+              </p>
+            ) : (
+              <div className="inline-actions">
+                <Link className="btn btn-primary" href={localizedPath(locale, "/insights")}>{t.exploreInsights}</Link>
+              </div>
+            )}
           </div>
-          <div className="inline-actions">
-            <Link className="btn btn-primary" href={localizedPath(locale, "/insights")}>{t.exploreInsights}</Link>
-            <span className="btn btn-secondary btn-disabled" aria-disabled="true">{t.techBriefComing}</span>
-          </div>
+          {edition && leadStory && (
+            <article className="home-brief-story" aria-labelledby="home-brief-headline" data-edition={edition.edition}>
+              <p className="brief-category">{techBriefCategoryLabels[locale][leadStory.category]}</p>
+              <h3 id="home-brief-headline">{leadStory[locale].headline}</h3>
+              <p className="home-brief-summary">{leadStory[locale].summary}</p>
+              <div className="inline-actions">
+                <Link className="btn btn-primary" href={localizedPath(locale, "/insights")}>{t.readLatestBrief}</Link>
+              </div>
+            </article>
+          )}
         </div>
       </section>
 

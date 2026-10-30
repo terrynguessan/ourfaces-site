@@ -1,7 +1,8 @@
 import type { Locale } from "@/lib/i18n";
-import type { TechBriefCategory, TechBriefStory } from "@/lib/techBrief";
+import type { TechBriefStory } from "@/lib/techBrief";
 import { formatEditionDate, getLatestEdition } from "@/lib/techBrief";
 import { getPreviousEditions } from "@/lib/techBriefArchive";
+import { techBriefCategoryLabels } from "@/lib/techBriefLabels";
 
 const copy = {
   en: {
@@ -14,12 +15,6 @@ const copy = {
     source: "Source:",
     previousEditions: "Previous Editions",
     articles: "articles",
-    categories: {
-      "emerging-technology": "Emerging Technology",
-      "development-practices": "Development Practices",
-      "tools-techniques": "Tools & Techniques",
-      "applied-ai": "Applied AI",
-    },
   },
   fr: {
     title: "Perspectives",
@@ -32,14 +27,8 @@ const copy = {
     source: "Source :",
     previousEditions: "Éditions précédentes",
     articles: "articles",
-    categories: {
-      "emerging-technology": "Technologies émergentes",
-      "development-practices": "Pratiques de développement",
-      "tools-techniques": "Outils et techniques",
-      "applied-ai": "IA appliquée",
-    },
   },
-} as const satisfies Record<Locale, { categories: Record<TechBriefCategory, string> } & Record<string, unknown>>;
+} as const;
 
 type StoryProps = { story: TechBriefStory; locale: Locale };
 
@@ -63,7 +52,7 @@ function Story({ story, locale, lead = false }: StoryProps & { lead?: boolean })
   return (
     <article className={lead ? "brief-story brief-story-lead" : "brief-story"} aria-labelledby={headingId}>
       <div className="brief-story-main">
-        <p className="brief-category">{t.categories[story.category]}</p>
+        <p className="brief-category">{techBriefCategoryLabels[locale][story.category]}</p>
         <h3 id={headingId}>{text.headline}</h3>
         <p className="brief-summary">{text.summary}</p>
       </div>
