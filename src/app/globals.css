@@ -1274,6 +1274,80 @@ h3 {
   }
 }
 
+/* Homepage Tech Brief preview: the latest edition's lead story beside the
+   section heading. */
+.home-brief {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 44px;
+  align-items: start;
+}
+
+.home-brief h2 {
+  margin-bottom: 0;
+}
+
+.feature-panel .home-brief-edition {
+  margin: 18px 0 0;
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.4;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.home-brief-edition time {
+  color: var(--ink);
+}
+
+.home-brief-story {
+  padding: 28px;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(var(--green), var(--green)) top / 100% 4px no-repeat,
+    rgba(255, 253, 248, 0.92);
+  box-shadow: 0 12px 34px rgba(20, 45, 34, 0.05);
+  overflow-wrap: break-word;
+}
+
+.feature-panel .brief-category {
+  margin: 0;
+  color: var(--gold-text);
+  font-size: 12px;
+}
+
+.home-brief-story h3 {
+  margin: 10px 0 0;
+  font-size: clamp(22px, 2.4vw, 28px);
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+.feature-panel .home-brief-summary {
+  margin: 12px 0 0;
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.home-brief-story .inline-actions {
+  margin-top: 22px;
+}
+
+@media (max-width: 1000px) {
+  .home-brief {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+}
+
+@media (max-width: 760px) {
+  .home-brief-story {
+    padding: 22px 20px;
+  }
+}
+
 .company-block {
   display: grid;
   grid-template-columns: 1fr 1fr;
