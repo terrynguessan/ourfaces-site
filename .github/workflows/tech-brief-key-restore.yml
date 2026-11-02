@@ -1,0 +1,120 @@
+# Tech Brief artifact key restore (temporary, one-time recovery; remove after use).
+#
+# Copies TECH_BRIEF_ARTIFACT_KEY from the tech-brief-research environment to
+# the tech-brief-publish environment, unchanged, so both environments hold the
+# key that sealed the existing research bundles again. Nobody sees the value:
+# it goes from the research environment straight to `gh secret set` on
+# standard input (gh encrypts it locally before sending it); it is never
+# printed, passed as a command argument, written to a file, or set as an output.
+# Only key ids (HMAC-derived, not reversible; the same id is in every bundle
+# header) appear in the log.
+#
+# Nothing else changes: no repository code runs (no checkout), no actions are
+# used, the workflow token has no permissions, and research artifacts, ledger,
+# provenance checks, corrections and publication approval are untouched.
+#
+# Setup (temporary):
+#   1. Fine-grained personal access token: resource owner terrynguessan, only
+#      the repository ourfaces-site, repository permission "Environments: Read
+#      and write" (Metadata: Read-only is added automatically), shortest expiry.
+#   2. Save it as the environment secret TECH_BRIEF_KEY_RESTORE_TOKEN in
+#      tech-brief-research (that environment runs main-branch jobs only).
+# Run: dispatch on main with confirm = "restore tech-brief-publish artifact key"
+#   and expected_key_id = the keyId in the header of the research bundle to be
+#   published. The restore job refuses before writing if the research key has
+#   another id; the verify job then checks the publication environment's key.
+# Cleanup, immediately after: delete TECH_BRIEF_KEY_RESTORE_TOKEN, revoke the
+#   token, and remove this file from main.
+
+name: Tech Brief artifact key restore
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type exactly: restore tech-brief-publish artifact key"
+        required: true
+        default: ""
+      expected_key_id:
+        description: "keyId (16 hex) from the header of the research bundle to be published"
+        required: true
+        default: ""
+
+permissions: {}
+
+concurrency:
+  group: tech-brief
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    if: github.repository == 'terrynguessan/ourfaces-site' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.confirm == 'restore tech-brief-publish artifact key'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: tech-brief-research
+    permissions: {}
+    steps:
+      - name: Check the request and the research key id
+        shell: bash
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+          EXPECTED_KEY_ID: ${{ inputs.expected_key_id }}
+          KEY: ${{ secrets.TECH_BRIEF_ARTIFACT_KEY }}
+        run: |
+          set -euo pipefail
+          if [ "$CONFIRM" != "restore tech-brief-publish artifact key" ]; then
+            echo "Refused: the confirmation phrase does not match exactly."
+            exit 1
+          fi
+          if ! [[ "$EXPECTED_KEY_ID" =~ ^[0-9a-f]{16}$ ]]; then
+            echo "Refused: expected_key_id must be 16 lowercase hex characters."
+            exit 1
+          fi
+          if ! [[ "$KEY" =~ ^[A-Za-z0-9+/]{43}=$ ]]; then
+            echo "Refused: the research environment's artifact key is missing or not 32 bytes in base64."
+            exit 1
+          fi
+          GOT=$(node -e 'const c = require("node:crypto"); process.stdout.write(c.createHmac("sha256", Buffer.from(process.env.KEY, "base64")).update("ourfaces-tech-brief-bundle key id").digest("hex").slice(0, 16));')
+          echo "Research environment key id: $GOT (expected $EXPECTED_KEY_ID)"
+          if [ "$GOT" != "$EXPECTED_KEY_ID" ]; then
+            echo "Refused: the research key did not seal the expected bundle; nothing was written."
+            exit 1
+          fi
+      - name: Restore the key in tech-brief-publish
+        shell: bash
+        env:
+          KEY: ${{ secrets.TECH_BRIEF_ARTIFACT_KEY }}
+          GH_TOKEN: ${{ secrets.TECH_BRIEF_KEY_RESTORE_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$GH_TOKEN" ]; then
+            echo "Refused: TECH_BRIEF_KEY_RESTORE_TOKEN is not set in tech-brief-research."
+            exit 1
+          fi
+          printf '%s' "$KEY" | gh secret set TECH_BRIEF_ARTIFACT_KEY --env tech-brief-publish --repo "$GITHUB_REPOSITORY"
+
+  verify:
+    needs: restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: tech-brief-publish
+    permissions: {}
+    steps:
+      - name: Check the publication environment's key id
+        shell: bash
+        env:
+          EXPECTED_KEY_ID: ${{ inputs.expected_key_id }}
+          KEY: ${{ secrets.TECH_BRIEF_ARTIFACT_KEY }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$KEY" =~ ^[A-Za-z0-9+/]{43}=$ ]]; then
+            echo "Failed: the publication environment's artifact key is not 32 bytes in base64."
+            exit 1
+          fi
+          GOT=$(node -e 'const c = require("node:crypto"); process.stdout.write(c.createHmac("sha256", Buffer.from(process.env.KEY, "base64")).update("ourfaces-tech-brief-bundle key id").digest("hex").slice(0, 16));')
+          echo "Publication environment key id: $GOT (expected $EXPECTED_KEY_ID)"
+          if [ "$GOT" != "$EXPECTED_KEY_ID" ]; then
+            echo "Failed: the publication environment's key differs from the research key."
+            exit 1
+          fi
+          echo "Restored: both environments hold the key that sealed the bundle."
