@@ -3,7 +3,16 @@
 // The files are read as text; jobs are split by their two-space indentation.
 
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { RESEARCH_WORKFLOW_PATH, gate } from "../automation.mjs";
 import { REHEARSAL_WORKFLOW_PATH } from "../rehearsal.mjs";
@@ -24,6 +33,7 @@ const PINNED = {
   "actions/setup-node": "949feb2413d6458794dcd2491c4babbbce0c15c1",
   "actions/upload-artifact": "cf430e030ddbb5b0abf93d22962f4752f3646cd9",
   "actions/download-artifact": "9000827ccba6bdab643e8b6fd33ac0654aef8333",
+  "actions/create-github-app-token": "64ab729a6294000f5aa4a4bc0b73d1f32bc45510",
 };
 
 /** { jobName: text } for the jobs: section. */
@@ -252,6 +262,8 @@ test("permissions: none by default, and each job gets only what it needs", () =>
   const writes = [];
   for (const [workflow, text] of Object.entries(WORKFLOWS))
     for (const [job, body] of Object.entries(jobs(text))) {
+      // Job token scopes sit at six spaces; step inputs such as the App
+      // token's permission-contents are deeper and are checked separately.
       for (const scope of [
         "contents: write",
         "issues: write",
@@ -260,7 +272,8 @@ test("permissions: none by default, and each job gets only what it needs", () =>
         "id-token: write",
         "pull-requests: write",
       ])
-        if (body.includes(scope)) writes.push(`${workflow}.${job} ${scope}`);
+        if (new RegExp(`^ {6}${scope}$`, "m").test(body))
+          writes.push(`${workflow}.${job} ${scope}`);
       assert.ok(
         !/permissions: write-all|permissions: read-all/.test(body),
         `${workflow}.${job}`,
@@ -270,7 +283,6 @@ test("permissions: none by default, and each job gets only what it needs", () =>
     "preview.preview actions: read",
     "publish.alert issues: write",
     "publish.publish actions: read",
-    "publish.publish contents: write",
     "rehearsal.verify actions: read",
     "research.alert issues: write",
     "research.reserve contents: write",
@@ -291,6 +303,7 @@ test("secrets: the OpenAI key only in Saturday research; the artifact key only t
     "publish.publish TECH_BRIEF_ARTIFACT_KEY",
     "publish.publish TECH_BRIEF_ARTIFACT_KEY_PREVIOUS",
     "publish.publish TECH_BRIEF_CORRECTIONS",
+    "publish.publish TECH_BRIEF_PUBLISHER_APP_KEY",
     "research.research OPENAI_API_KEY",
     "research.research TECH_BRIEF_ARTIFACT_KEY",
   ]);
@@ -304,15 +317,165 @@ test("secrets: the OpenAI key only in Saturday research; the artifact key only t
     "publish.publish tech-brief-publish",
     "research.research tech-brief-research",
   ]);
-  // Jobs holding a key never keep Git credentials, except publish, which must push main.
+  // Jobs holding a key never keep Git credentials; publish pushes with its
+  // short-lived App token instead (see the publisher token test).
   assert.match(jobs(WORKFLOWS.research).research, /persist-credentials: false/);
-  const preview = jobs(WORKFLOWS.preview).preview;
-  assert.equal(
-    (preview.match(/persist-credentials: false/g) ?? []).length,
-    (preview.match(/uses: actions\/checkout@/g) ?? []).length,
-  );
+  for (const job of [
+    jobs(WORKFLOWS.preview).preview,
+    jobs(WORKFLOWS.publish).publish,
+  ])
+    assert.equal(
+      (job.match(/persist-credentials: false/g) ?? []).length,
+      (job.match(/uses: actions\/checkout@/g) ?? []).length,
+    );
   assert.ok(!WORKFLOWS.rehearsal.includes("secrets."));
   assert.ok(!WORKFLOWS.ci.includes("secrets."));
+});
+
+/** A step's `with:` or `env:` entries as [key, raw value] pairs. */
+function stepMap(step, section) {
+  const block = step.match(
+    new RegExp(`\\n {8}${section}:\\n((?: {10}[^\\n]*\\n)+)`),
+  );
+  assert.ok(block, `${section}: block`);
+  return block[1]
+    .trimEnd()
+    .split("\n")
+    .map((line) =>
+      line
+        .trim()
+        .match(/^([\w-]+): (.*)$/)
+        .slice(1),
+    );
+}
+/** A plain, '…' or "…" YAML scalar. */
+const scalar = (raw) =>
+  raw.startsWith("'")
+    ? raw.slice(1, -1).replace(/''/g, "'")
+    : raw.startsWith('"')
+      ? JSON.parse(raw)
+      : raw;
+
+test("publisher token: minted only to push a prepared edition, this repository and contents: write only, never kept or printed", () => {
+  const publish = jobs(WORKFLOWS.publish).publish;
+  // The job's own token is read-only.
+  assert.match(
+    publish,
+    /\n {4}permissions:\n {6}contents: read\n {6}actions: read\n {4}outputs:/,
+  );
+  // The App key, client ID and token appear only in the publication workflow.
+  for (const [name, text] of Object.entries(WORKFLOWS))
+    if (name !== "publish")
+      assert.ok(!/PUBLISHER|create-github-app-token/.test(text), name);
+  const count = (re) => (WORKFLOWS.publish.match(re) ?? []).length;
+  assert.equal(count(/secrets\.TECH_BRIEF_PUBLISHER_APP_KEY/g), 1);
+  assert.equal(count(/vars\.TECH_BRIEF_PUBLISHER_CLIENT_ID/g), 1);
+  // The client ID, not the App ID or the action's deprecated app-id input.
+  assert.equal(count(/TECH_BRIEF_PUBLISHER_APP_ID/g), 0);
+  assert.equal(count(/^\s+app-id:/gm), 0);
+  assert.equal(count(/create-github-app-token@/g), 1);
+  assert.equal(count(/steps\.publisher-token\.outputs\.token/g), 1);
+
+  // Order: commit (no credentials) -> mint -> push -> failure restore.
+  const steps = publish.split(/\n {6}- /).slice(1);
+  const at = (needle) => steps.findIndex((s) => s.includes(needle));
+  const commit = at('commit -m "$MESSAGE"');
+  const mint = at("uses: actions/create-github-app-token@");
+  const push = at("run: git push origin HEAD:main");
+  const restore = at("Restore the content folder after a failure");
+  assert.ok(at("check-changes") === commit && commit >= 0, "check-changes");
+  assert.ok(commit < mint && mint + 1 === push && push < restore);
+  assert.match(steps[restore], /if: failure\(\)/);
+  for (const i of [commit, mint, push])
+    assert.match(
+      steps[i],
+      /\n {8}if: steps\.prepare\.outputs\.status == 'prepared'\n/,
+    );
+  // Nothing before the token step sees the App key or the token.
+  for (const step of steps.slice(0, mint)) assert.ok(!/PUBLISHER/.test(step));
+
+  // The token: this repository only (no owner, repositories or enterprise),
+  // contents: write only, revoked at the end of the job (the default).
+  assert.match(steps[mint], /^id: publisher-token\n/);
+  assert.deepEqual(stepMap(steps[mint], "with"), [
+    ["client-id", "${{ vars.TECH_BRIEF_PUBLISHER_CLIENT_ID }}"],
+    ["private-key", "${{ secrets.TECH_BRIEF_PUBLISHER_APP_KEY }}"],
+    ["permission-contents", "write"],
+  ]);
+
+  // The push: the token only through a step-scoped credential helper, after
+  // clearing any other helper; no URL, command-line or .git/config credential.
+  const env = stepMap(steps[push], "env");
+  assert.deepEqual(
+    env.map(([key]) => key),
+    [
+      "PUBLISHER_TOKEN",
+      "GIT_CONFIG_COUNT",
+      "GIT_CONFIG_KEY_0",
+      "GIT_CONFIG_VALUE_0",
+      "GIT_CONFIG_KEY_1",
+      "GIT_CONFIG_VALUE_1",
+    ],
+  );
+  assert.equal(env[0][1], "${{ steps.publisher-token.outputs.token }}");
+  assert.deepEqual(runScripts(steps[push]), ["git push origin HEAD:main"]);
+  for (const s of runScripts(WORKFLOWS.publish))
+    for (const leak of [
+      /PUBLISHER_TOKEN/,
+      /x-access-token/,
+      /set -x/,
+      /GIT_TRACE|GIT_CURL_VERBOSE/,
+      /extraheader/,
+      /https:\/\/[^\s]*@/,
+    ])
+      assert.ok(!leak.test(s), `${leak}: ${s.slice(0, 60)}`);
+  assert.ok(!/GIT_TRACE|GIT_CURL_VERBOSE|GITHUB_ENV/.test(WORKFLOWS.publish));
+
+  // The helper really works: offline, with a dummy token, an isolated Git
+  // configuration and a reserved host, it answers "get" with exactly that
+  // token, replaces any other helper, and stays silent on "store"/"erase".
+  const home = mkdtempSync(join(tmpdir(), "publisher-helper-"));
+  try {
+    // A decoy helper in the (isolated) global configuration: without the
+    // reset, Git would ask it first and get the wrong credentials.
+    writeFileSync(
+      join(home, "gitconfig"),
+      '[credential]\n\thelper = "!f() { echo username=decoy; echo password=decoy; }; f"\n',
+    );
+    const gitEnv = {
+      ...process.env,
+      HOME: home,
+      GIT_CONFIG_NOSYSTEM: "1",
+      GIT_CONFIG_GLOBAL: join(home, "gitconfig"),
+      GIT_TERMINAL_PROMPT: "0",
+      GIT_ASKPASS: "",
+      SSH_ASKPASS: "",
+      PUBLISHER_TOKEN: "dummy-token-for-tests",
+    };
+    for (const [key, raw] of env.slice(1)) gitEnv[key] = scalar(raw);
+    const credential = (action, input) =>
+      execFileSync("git", ["credential", action], {
+        cwd: home,
+        env: gitEnv,
+        input,
+        encoding: "utf8",
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+    const request = "protocol=https\nhost=publisher-helper.invalid\n\n";
+    const filled = Object.fromEntries(
+      credential("fill", request)
+        .trim()
+        .split("\n")
+        .map((line) => line.split(/=(.*)/s).slice(0, 2)),
+    );
+    assert.equal(filled.username, "x-access-token");
+    assert.equal(filled.password, "dummy-token-for-tests");
+    const full = `${request.trim()}\nusername=x-access-token\npassword=dummy-token-for-tests\n\n`;
+    assert.equal(credential("approve", full), "");
+    assert.equal(credential("reject", full), "");
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
 });
 
 test("actions are pinned to full commit SHAs of the reviewed versions", () => {
