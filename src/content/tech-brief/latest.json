@@ -1,82 +1,82 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-10-24",
-  "publishedOn": "2026-10-25",
+  "edition": "2026-10-31",
+  "publishedOn": "2026-11-01",
   "stories": [
     {
       "id": "s1",
-      "category": "emerging-technology",
-      "url": "https://developers.googleblog.com/announcing-new-vllm-and-sglang-inference-engines-on-tpu/",
-      "publisher": "developers.googleblog.com",
-      "sourcePublishedOn": "2026-10-20",
-      "sourceHeadline": "Announcing New vLLM and SGLang Inference Engines on TPU",
+      "category": "development-practices",
+      "url": "https://engineering.fb.com/2026/10/29/security/catching-bugs-before-they-land-jittestings-human-on-the-loop-approach-at-full-scale/",
+      "publisher": "Engineering at Meta",
+      "sourcePublishedOn": "2026-10-29",
+      "sourceHeadline": "Catching Bugs Before They Land: JiTTesting’s Human-on-the-Loop Approach at Full Scale",
       "sourceHeadlineLang": "en",
       "en": {
-        "headline": "Google launches native PyTorch backends for vLLM and SGLang",
-        "summary": "According to developers.googleblog.com, Google launched native PyTorch backends for vLLM and SGLang. TorchTPU makes TPU a native PyTorch device. TPU Sync reads device buffers behind PyTorch tensors directly, avoiding an extra host staging copy during transfer. Both engines run at scale in production with preview customers.",
-        "whyItMatters": "Teams serving models with vLLM or SGLang can now target TPUs while keeping PyTorch for customizing and debugging, instead of switching to the JAX-based backends, which Google says it will keep maintaining."
+        "headline": "Meta reports Catching JiTTests helped catch 74 serious privacy bugs before production",
+        "summary": "Meta reports that 589 engineers have engaged with Catching JiTTests, which are part of its infrastructure. Engineers reported a 60% true-positive rate. The tests played a key role in catching 74 serious privacy bugs at the diff stage, before they reached production.",
+        "whyItMatters": "A regression caught at the diff stage, before code lands, never reaches end users. Meta’s tests show a concrete behavior change that engineers only need to confirm as intended or not, which Meta presents as a way for testing to keep pace with faster, AI-assisted development."
       },
       "fr": {
-        "headline": "Google lance des backends PyTorch natifs pour vLLM et SGLang",
-        "summary": "Selon developers.googleblog.com, Google a lancé des backends PyTorch natifs pour vLLM et SGLang. TorchTPU fait du TPU un périphérique PyTorch natif. TPU Sync lit directement les buffers du périphérique associés aux tenseurs PyTorch, évitant une copie intermédiaire supplémentaire sur l’hôte lors du transfert. Les deux moteurs fonctionnent à grande échelle en production chez des clients participant à la préversion.",
-        "whyItMatters": "Les équipes qui servent des modèles avec vLLM ou SGLang peuvent désormais cibler les TPU en gardant PyTorch pour personnaliser et déboguer, sans passer aux backends basés sur JAX, que Google dit continuer à maintenir."
+        "headline": "Selon Meta, Catching JiTTests a aidé à détecter 74 bugs graves de confidentialité avant production",
+        "summary": "Meta indique que 589 ingénieurs ont été impliqués dans Catching JiTTests, qui fait partie de son infrastructure. Les ingénieurs ont signalé un taux de vrais positifs de 60 %. Ces tests ont joué un rôle clé dans la détection de 74 bugs graves de confidentialité au stade du diff, avant leur passage en production.",
+        "whyItMatters": "Une régression détectée au stade du diff, avant l’intégration du code, n’atteint jamais les utilisateurs finaux. Les tests de Meta mettent en évidence un changement de comportement concret que les ingénieurs n’ont qu’à confirmer comme voulu ou non, ce que Meta présente comme un moyen pour les tests de suivre un développement plus rapide, assisté par l’IA."
       }
     },
     {
       "id": "s2",
       "category": "tools-techniques",
-      "url": "https://blog.pragmaticengineer.com/the-pulse-anthropic-builds-its-own-source-control-system/",
-      "publisher": "The Pragmatic Engineer",
-      "sourcePublishedOn": "2026-10-22",
-      "sourceHeadline": "The Pulse: Anthropic builds its own source control system",
+      "url": "https://github.blog/changelog/2026-10-28-github-actions-workflow-lockfiles-are-generally-available/",
+      "publisher": "The GitHub Blog",
+      "sourcePublishedOn": "2026-10-28",
+      "sourceHeadline": "GitHub Actions workflow lockfiles are generally available",
       "sourceHeadlineLang": "en",
       "en": {
-        "headline": "Anthropic moves its monorepo off Git with Scion",
-        "summary": "Anthropic built an internal source control system called Scion and has moved all of its monorepo off Git. Scion stores changesets in Google Spanner and blobs in Google Cloud Storage; its server and client are written in Rust. Anthropic also built Antique, a code review platform, to replace GitHub's.",
-        "whyItMatters": "For teams adopting coding agents, Anthropic's case shows source control itself can become the bottleneck: merged changes rose from about 2,500 a day in May to over 30,000 in September, and its Git mirrors stopped scaling once the repository outgrew their disks."
+        "headline": "Workflow dependency lockfiles now generally available in GitHub Actions",
+        "summary": "The GitHub Blog reports that workflow dependency lockfiles are now generally available for Free, Team and GitHub Enterprise Cloud, including its data-residency offering. The GitHub CLI’s gh actions-lock extension can create .github/workflows/actions.lock covering actions and transitive dependencies. In onboarded workflows, Dependabot refreshes the corresponding lockfile entry alongside action version updates in the same pull request, without extra configuration.",
+        "whyItMatters": "Administrators at enterprise, organization and repository levels can require lockfile adoption using the Require lockfile policy."
       },
       "fr": {
-        "headline": "Anthropic abandonne Git pour son monodépôt avec Scion",
-        "summary": "Anthropic a créé en interne un système de gestion de versions appelé Scion et a retiré la totalité de son monodépôt de Git. Scion stocke les ensembles de modifications dans Google Spanner et les blobs dans Google Cloud Storage ; son serveur et son client sont écrits en Rust. Anthropic a aussi créé Antique, une plateforme de revue de code qui remplace celle de GitHub.",
-        "whyItMatters": "Pour les équipes qui adoptent des agents de code, le cas d’Anthropic montre que la gestion de versions peut elle-même devenir le goulot d’étranglement : les modifications fusionnées sont passées d’environ 2 500 par jour en mai à plus de 30 000 en septembre, et ses miroirs Git ont cessé de suivre quand le dépôt a dépassé leurs disques."
+        "headline": "GitHub Actions : disponibilité générale des lockfiles de dépendances des workflows",
+        "summary": "Le blog de GitHub (The GitHub Blog) annonce la disponibilité générale des lockfiles de dépendances des workflows pour Free, Team et GitHub Enterprise Cloud, y compris l’offre avec résidence des données. L’extension gh actions-lock de GitHub CLI peut créer .github/workflows/actions.lock pour les actions et leurs dépendances transitives. Pour les workflows intégrés au dispositif, Dependabot actualise l’entrée correspondante dans la même pull request que la mise à jour de version d’une action, sans configuration supplémentaire.",
+        "whyItMatters": "Les administrateurs d’entreprises, d’organisations et de dépôts peuvent imposer l’adoption des lockfiles au moyen de la politique Require lockfile."
       }
     },
     {
       "id": "s3",
       "category": "applied-ai",
-      "url": "https://claude.com/resources/articles/claude-duet",
-      "publisher": "Claude",
-      "sourcePublishedOn": "2026-10-21",
-      "sourceHeadline": "Introducing Claude Duet",
+      "url": "https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-gemini-4-carbon/",
+      "publisher": "Google",
+      "sourcePublishedOn": "2026-10-28",
+      "sourceHeadline": "Gemini 4 Carbon: our next frontier model",
       "sourceHeadlineLang": "en",
       "en": {
-        "headline": "Claude Duet research preview opens by waitlist to Pro and Max subscribers in the United States",
-        "summary": "Claude says Duet, a proactive agent app in research preview, checks connected accounts every few hours and asks for approval before sending messages, making payments, signing documents or deleting anything. Access is limited to Pro and Max subscribers in the United States who join a waitlist; Duet then runs as a standalone iOS and Android app or on claude.ai and shares the plan's usage limits.",
-        "whyItMatters": "Duet moves agent work into the background, so its guardrails matter: consequential actions wait for approval, some, such as trading securities, stay blocked even with approval, and background checks count against plan limits."
+        "headline": "Google announces Gemini 4 Carbon and reports benchmark scores",
+        "summary": "Google announced Gemini 4 Carbon as its next frontier model. It reports that Carbon ranked first on version 5.0 of the Artificial Analysis Intelligence Index with a score of 59, and achieved 88.2% on SEC-bench Pro.",
+        "whyItMatters": "Google’s scores help teams compare models on coding and security tasks, but Google reports them itself, its external benchmarks ran without guardrails, and no score shows fit for a specific workload. Carbon goes first to a subset of cyber defenders, so developers cannot try it yet."
       },
       "fr": {
-        "headline": "Claude Duet ouvre sa préversion de recherche sur liste d’attente aux abonnés Pro et Max aux États-Unis",
-        "summary": "Claude indique que Duet, une application d’agent proactif en préversion de recherche, consulte les comptes connectés à quelques heures d’intervalle et demande une approbation avant d’envoyer des messages, d’effectuer des paiements, de signer des documents ou de supprimer quoi que ce soit. L’accès est réservé aux abonnés Pro et Max aux États-Unis inscrits sur une liste d’attente ; Duet fonctionne alors comme application autonome iOS et Android ou sur claude.ai et partage les limites d’utilisation de l’abonnement.",
-        "whyItMatters": "Duet fait passer le travail d’agent en arrière-plan, d’où l’importance de ses garde-fous : les actions engageantes attendent une approbation, certaines, comme les opérations sur titres, restent interdites même avec approbation, et les vérifications en arrière-plan comptent dans les limites de l’abonnement."
+        "headline": "Google annonce Gemini 4 Carbon et présente ses scores aux benchmarks",
+        "summary": "Google annonce Gemini 4 Carbon comme son prochain modèle « frontier ». Selon l’entreprise, Carbon se classe premier sur la version 5.0 de l’Artificial Analysis Intelligence Index avec un score de 59 et obtient 88,2 % sur SEC-bench Pro.",
+        "whyItMatters": "Les scores de Google aident les équipes à comparer des modèles en code et en sécurité, mais c’est Google qui les communique, ses benchmarks externes ont été réalisés sans garde-fous et aucun score ne garantit l’adéquation à un usage précis. Carbon est d’abord réservé à certains spécialistes de la cyberdéfense, et les développeurs ne peuvent pas encore l’essayer."
       }
     },
     {
       "id": "s4",
-      "category": "tools-techniques",
-      "url": "https://blog.sentry.io/when-you-need-a-metric/",
-      "publisher": "Sentry Blog",
-      "sourcePublishedOn": "2026-10-22",
-      "sourceHeadline": "Should you use a log or a metric?",
+      "category": "applied-ai",
+      "url": "https://code.visualstudio.com/blogs/2026/10/27/configurable-eagerness",
+      "publisher": "code.visualstudio.com",
+      "sourcePublishedOn": "2026-10-26",
+      "sourceHeadline": "Tune GitHub Copilot Inline Suggestions with Configurable Eagerness",
       "sourceHeadlineLang": "en",
       "en": {
-        "headline": "Sentry guide explains when to choose logs or application metrics",
-        "summary": "Sentry says logs suit debugging because they record what was true when something happened, while metrics answer questions a team chooses to track over time. The October guide covers Logs and Application Metrics, which Sentry added earlier; unlike sampled traces, both are kept unsampled. Shared attributes set on the scope, available since SDK v10.61.0, apply to both automatically.",
-        "whyItMatters": "Because traces are sampled and give only approximate counts, the guide helps developers decide which events need an exact log or metric, and which logs to keep elsewhere rather than paying to store the same data twice."
+        "headline": "VS Code offers paid Copilot subscribers adjustable eagerness for inline suggestions",
+        "summary": "According to code.visualstudio.com, paid GitHub Copilot subscribers can adjust inline-suggestion eagerness in VS Code. Training covered three eagerness settings: low, medium and high. The article used edit distance as an eagerness proxy, counting how many characters a suggestion changed.",
+        "whyItMatters": "Developers can choose how much Copilot interrupts: low eagerness offers fewer, smaller edits and high offers more, larger ones. In A/B tests against medium, low had a 29% lower dismissal rate and high 40% more accepted and retained characters. The settings guide behavior, not strict limits."
       },
       "fr": {
-        "headline": "Un guide de Sentry explique quand choisir les logs ou les métriques applicatives",
-        "summary": "Sentry explique que les logs servent au débogage, car ils consignent ce qui était vrai au moment d’un événement, tandis que les métriques répondent à des questions qu’une équipe choisit de suivre dans le temps. Ce guide d’octobre porte sur Logs et Application Metrics, que Sentry avait ajoutés auparavant ; contrairement aux traces échantillonnées, les deux sont conservés sans échantillonnage. Les attributs partagés définis sur le scope, disponibles depuis le SDK v10.61.0, s’appliquent automatiquement aux deux.",
-        "whyItMatters": "Comme les traces sont échantillonnées et ne donnent que des décomptes approximatifs, le guide aide les développeurs à choisir les événements qui méritent un log ou une métrique exacts, et les logs à garder ailleurs plutôt que de payer deux fois le stockage des mêmes données."
+        "headline": "VS Code : un réglage d’eagerness pour les abonnés payants à Copilot",
+        "summary": "Selon code.visualstudio.com, les abonnés payants à GitHub Copilot peuvent régler l’eagerness des suggestions en ligne dans VS Code. Le modèle a été entraîné pour trois niveaux : faible, moyen et élevé. L’article utilise la distance d’édition comme indicateur de l’eagerness, en comptant les caractères modifiés par une suggestion.",
+        "whyItMatters": "Les développeurs règlent l’intervention de Copilot : moins de modifications, plus petites, en mode faible, davantage et de plus grandes en mode élevé. En tests A/B face au mode moyen, le taux de rejet baisse de 29 % en mode faible et les caractères acceptés et conservés augmentent de 40 % en mode élevé. Ces réglages orientent, sans limites strictes."
       }
     }
   ]

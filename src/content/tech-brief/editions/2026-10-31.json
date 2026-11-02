@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "edition": "2026-10-31",
+  "publishedOn": "2026-11-01",
+  "stories": [
+    {
+      "id": "s1",
+      "category": "development-practices",
+      "url": "https://engineering.fb.com/2026/10/29/security/catching-bugs-before-they-land-jittestings-human-on-the-loop-approach-at-full-scale/",
+      "publisher": "Engineering at Meta",
+      "sourcePublishedOn": "2026-10-29",
+      "sourceHeadline": "Catching Bugs Before They Land: JiTTesting’s Human-on-the-Loop Approach at Full Scale",
+      "sourceHeadlineLang": "en",
+      "en": {
+        "headline": "Meta reports Catching JiTTests helped catch 74 serious privacy bugs before production",
+        "summary": "Meta reports that 589 engineers have engaged with Catching JiTTests, which are part of its infrastructure. Engineers reported a 60% true-positive rate. The tests played a key role in catching 74 serious privacy bugs at the diff stage, before they reached production.",
+        "whyItMatters": "A regression caught at the diff stage, before code lands, never reaches end users. Meta’s tests show a concrete behavior change that engineers only need to confirm as intended or not, which Meta presents as a way for testing to keep pace with faster, AI-assisted development."
+      },
+      "fr": {
+        "headline": "Selon Meta, Catching JiTTests a aidé à détecter 74 bugs graves de confidentialité avant production",
+        "summary": "Meta indique que 589 ingénieurs ont été impliqués dans Catching JiTTests, qui fait partie de son infrastructure. Les ingénieurs ont signalé un taux de vrais positifs de 60 %. Ces tests ont joué un rôle clé dans la détection de 74 bugs graves de confidentialité au stade du diff, avant leur passage en production.",
+        "whyItMatters": "Une régression détectée au stade du diff, avant l’intégration du code, n’atteint jamais les utilisateurs finaux. Les tests de Meta mettent en évidence un changement de comportement concret que les ingénieurs n’ont qu’à confirmer comme voulu ou non, ce que Meta présente comme un moyen pour les tests de suivre un développement plus rapide, assisté par l’IA."
+      }
+    },
+    {
+      "id": "s2",
+      "category": "tools-techniques",
+      "url": "https://github.blog/changelog/2026-10-28-github-actions-workflow-lockfiles-are-generally-available/",
+      "publisher": "The GitHub Blog",
+      "sourcePublishedOn": "2026-10-28",
+      "sourceHeadline": "GitHub Actions workflow lockfiles are generally available",
+      "sourceHeadlineLang": "en",
+      "en": {
+        "headline": "Workflow dependency lockfiles now generally available in GitHub Actions",
+        "summary": "The GitHub Blog reports that workflow dependency lockfiles are now generally available for Free, Team and GitHub Enterprise Cloud, including its data-residency offering. The GitHub CLI’s gh actions-lock extension can create .github/workflows/actions.lock covering actions and transitive dependencies. In onboarded workflows, Dependabot refreshes the corresponding lockfile entry alongside action version updates in the same pull request, without extra configuration.",
+        "whyItMatters": "Administrators at enterprise, organization and repository levels can require lockfile adoption using the Require lockfile policy."
+      },
+      "fr": {
+        "headline": "GitHub Actions : disponibilité générale des lockfiles de dépendances des workflows",
+        "summary": "Le blog de GitHub (The GitHub Blog) annonce la disponibilité générale des lockfiles de dépendances des workflows pour Free, Team et GitHub Enterprise Cloud, y compris l’offre avec résidence des données. L’extension gh actions-lock de GitHub CLI peut créer .github/workflows/actions.lock pour les actions et leurs dépendances transitives. Pour les workflows intégrés au dispositif, Dependabot actualise l’entrée correspondante dans la même pull request que la mise à jour de version d’une action, sans configuration supplémentaire.",
+        "whyItMatters": "Les administrateurs d’entreprises, d’organisations et de dépôts peuvent imposer l’adoption des lockfiles au moyen de la politique Require lockfile."
+      }
+    },
+    {
+      "id": "s3",
+      "category": "applied-ai",
+      "url": "https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-gemini-4-carbon/",
+      "publisher": "Google",
+      "sourcePublishedOn": "2026-10-28",
+      "sourceHeadline": "Gemini 4 Carbon: our next frontier model",
+      "sourceHeadlineLang": "en",
+      "en": {
+        "headline": "Google announces Gemini 4 Carbon and reports benchmark scores",
+        "summary": "Google announced Gemini 4 Carbon as its next frontier model. It reports that Carbon ranked first on version 5.0 of the Artificial Analysis Intelligence Index with a score of 59, and achieved 88.2% on SEC-bench Pro.",
+        "whyItMatters": "Google’s scores help teams compare models on coding and security tasks, but Google reports them itself, its external benchmarks ran without guardrails, and no score shows fit for a specific workload. Carbon goes first to a subset of cyber defenders, so developers cannot try it yet."
+      },
+      "fr": {
+        "headline": "Google annonce Gemini 4 Carbon et présente ses scores aux benchmarks",
+        "summary": "Google annonce Gemini 4 Carbon comme son prochain modèle « frontier ». Selon l’entreprise, Carbon se classe premier sur la version 5.0 de l’Artificial Analysis Intelligence Index avec un score de 59 et obtient 88,2 % sur SEC-bench Pro.",
+        "whyItMatters": "Les scores de Google aident les équipes à comparer des modèles en code et en sécurité, mais c’est Google qui les communique, ses benchmarks externes ont été réalisés sans garde-fous et aucun score ne garantit l’adéquation à un usage précis. Carbon est d’abord réservé à certains spécialistes de la cyberdéfense, et les développeurs ne peuvent pas encore l’essayer."
+      }
+    },
+    {
+      "id": "s4",
+      "category": "applied-ai",
+      "url": "https://code.visualstudio.com/blogs/2026/10/27/configurable-eagerness",
+      "publisher": "code.visualstudio.com",
+      "sourcePublishedOn": "2026-10-26",
+      "sourceHeadline": "Tune GitHub Copilot Inline Suggestions with Configurable Eagerness",
+      "sourceHeadlineLang": "en",
+      "en": {
+        "headline": "VS Code offers paid Copilot subscribers adjustable eagerness for inline suggestions",
+        "summary": "According to code.visualstudio.com, paid GitHub Copilot subscribers can adjust inline-suggestion eagerness in VS Code. Training covered three eagerness settings: low, medium and high. The article used edit distance as an eagerness proxy, counting how many characters a suggestion changed.",
+        "whyItMatters": "Developers can choose how much Copilot interrupts: low eagerness offers fewer, smaller edits and high offers more, larger ones. In A/B tests against medium, low had a 29% lower dismissal rate and high 40% more accepted and retained characters. The settings guide behavior, not strict limits."
+      },
+      "fr": {
+        "headline": "VS Code : un réglage d’eagerness pour les abonnés payants à Copilot",
+        "summary": "Selon code.visualstudio.com, les abonnés payants à GitHub Copilot peuvent régler l’eagerness des suggestions en ligne dans VS Code. Le modèle a été entraîné pour trois niveaux : faible, moyen et élevé. L’article utilise la distance d’édition comme indicateur de l’eagerness, en comptant les caractères modifiés par une suggestion.",
+        "whyItMatters": "Les développeurs règlent l’intervention de Copilot : moins de modifications, plus petites, en mode faible, davantage et de plus grandes en mode élevé. En tests A/B face au mode moyen, le taux de rejet baisse de 29 % en mode faible et les caractères acceptés et conservés augmentent de 40 % en mode élevé. Ces réglages orientent, sans limites strictes."
+      }
+    }
+  ]
+}
