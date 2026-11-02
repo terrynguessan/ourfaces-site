@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { contactFailure } from "@/lib/contactResponse";
 import type { Locale } from "@/lib/i18n";
 
 type SubmitState = "idle" | "sending" | "success" | "error";
@@ -18,6 +19,8 @@ const copy = {
     send: "Send Message",
     success: "Thank you. Your message has been sent to OurFaces.",
     error: "Unable to send your message. Please try again.",
+    tooMany: "Too many messages have been sent from your connection. Please wait a few minutes and try again.",
+    tooLarge: "Your message is too long. Please shorten it and try again.",
     topics: [
       ["Technology", "Technology"],
       ["Business Opportunity", "Business Opportunity"],
@@ -39,6 +42,8 @@ const copy = {
     send: "Envoyer le message",
     success: "Merci. Votre message a été envoyé à OurFaces.",
     error: "Impossible d’envoyer votre message. Veuillez réessayer.",
+    tooMany: "Trop de messages ont été envoyés depuis votre connexion. Veuillez patienter quelques minutes avant de réessayer.",
+    tooLarge: "Votre message est trop long. Veuillez le raccourcir et réessayer.",
     topics: [
       ["Technology", "Technologie"],
       ["Business Opportunity", "Opportunité commerciale"],
@@ -77,18 +82,20 @@ export default function ContactForm({ locale = "en" }: { locale?: Locale }) {
         }),
       });
 
-      const result = (await response.json()) as { ok?: boolean; error?: string };
-
-      if (!response.ok || !result.ok) {
-        throw new Error(locale === "fr" ? t.error : result.error || t.error);
+      const failure = await contactFailure(response, locale, t);
+      if (failure !== null) {
+        setSubmitState("error");
+        setStatusMessage(failure);
+        return;
       }
 
       formElement.reset();
       setSubmitState("success");
       setStatusMessage(t.success);
-    } catch (error) {
+    } catch {
+      // Network failure: never show the browser's raw error text.
       setSubmitState("error");
-      setStatusMessage(locale === "fr" ? t.error : error instanceof Error ? error.message : t.error);
+      setStatusMessage(t.error);
     }
   }
 

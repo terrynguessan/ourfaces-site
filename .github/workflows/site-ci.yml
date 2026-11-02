@@ -1,0 +1,46 @@
+# Website CI: contact API and form tests, TypeScript and the production build.
+#
+# Runs on every pull request to main and every push to main, with no path
+# filters, so the check always reports and can safely become a required check.
+# No secrets or environment variables: the contact tests use a stand-in mailer
+# and never send email, and the build needs none. Read-only token, locked
+# dependencies (npm ci), actions pinned to the same reviewed commits as the
+# Tech Brief workflows.
+
+name: Site CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  site:
+    name: Site checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+      - name: Contact API and form tests
+        run: npm run test:contact
+      - name: TypeScript
+        run: npx --no-install tsc --noEmit
+      - name: Production build
+        run: npm run build
