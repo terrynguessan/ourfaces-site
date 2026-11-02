@@ -138,6 +138,36 @@ test("only a JSON { ok: true } with a 2xx status counts as sent", async () => {
     assert.equal(await contactFailure(response, "en", EN), EN.error);
 });
 
+test("only the boolean true counts: other truthy ok values are not a success", async () => {
+  const truthy = [
+    1,
+    "true",
+    "yes",
+    "ok",
+    {},
+    [],
+    [true],
+    { value: true },
+    -1,
+    "false",
+  ];
+  for (const ok of truthy) {
+    for (const [locale, copy] of [
+      ["en", EN],
+      ["fr", FR],
+    ]) {
+      const message = await contactFailure(json(200, { ok }), locale, copy);
+      assert.equal(message, copy.error, `${locale} ok: ${JSON.stringify(ok)}`);
+    }
+  }
+  // A truthy ok next to an error is still a failure, with the API's message in English.
+  assert.equal(
+    await contactFailure(json(200, { ok: 1, error: "Not sent." }), "en", EN),
+    "Not sent.",
+  );
+  assert.equal(await contactFailure(json(200, { ok: true }), "en", EN), null);
+});
+
 test("unexpected error values fall back to the form's own copy", async () => {
   assert.equal(
     await contactFailure(json(429, { error: 42 }), "en", EN),

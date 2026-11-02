@@ -17,7 +17,7 @@ export async function contactFailure(
     parsed !== null && typeof parsed === "object"
       ? (parsed as { ok?: unknown; error?: unknown })
       : {};
-  if (response.ok && body.ok) return null;
+  if (response.ok && body.ok === true) return null;
   if (locale === "en" && typeof body.error === "string" && body.error)
     return body.error;
   if (response.status === 429) return copy.tooMany;
