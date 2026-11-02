@@ -7,8 +7,12 @@
 # "manual" (manual dispatches only); automation.mjs checks the state again and
 # also requires refs/heads/main and an approved sources.json.
 # The job needs the tech-brief-publish environment (TECH_BRIEF_ARTIFACT_KEY
-# only, never the OpenAI key). It pushes one commit to main without force; if
-# branch protection refuses that push the run fails and nothing is published.
+# and the OurFaces Publisher GitHub App key, never the OpenAI key). Its
+# GITHUB_TOKEN is read-only and no checkout keeps Git credentials. Only after
+# the commit exists does it create a short-lived App installation token (this
+# repository, contents: write; revoked when the job ends) and use it for one
+# push to main without force; if branch protection refuses that push the run
+# fails and nothing is published.
 # Supervised publication (TECH_BRIEF_AUTOMATION "manual"): approved_digest must
 # be the content digest of the editorial preview the editor approved
 # (tech-brief-preview.yml); any other content is refused and needs a new review.
@@ -61,7 +65,7 @@ jobs:
     timeout-minutes: 30
     environment: tech-brief-publish
     permissions:
-      contents: write
+      contents: read
       actions: read
     outputs:
       status: ${{ steps.prepare.outputs.status }}
@@ -71,6 +75,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: tech-brief-ledger
@@ -131,7 +136,7 @@ jobs:
             --bundle-dir "$RUNNER_TEMP/bundle" --content-dir src/content/tech-brief --repo-dir . \
             --approved-digest "$APPROVED_DIGEST" \
             --use-corrections "$USE_CORRECTIONS" --corrections "$CORRECTIONS_FILE" --corrections-digest "$CORRECTIONS_DIGEST"
-      - name: Commit and push the public edition
+      - name: Commit the public edition
         if: steps.prepare.outputs.status == 'prepared'
         env:
           EDITION: ${{ steps.plan.outputs.edition }}
@@ -147,7 +152,28 @@ jobs:
           fi
           git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
             commit -m "$MESSAGE"
-          git push origin HEAD:main
+      # Inputs: the App's client ID (not the deprecated app-id input); no
+      # owner/repositories, so the token covers this repository only.
+      - id: publisher-token
+        name: Create a short-lived publisher token
+        if: steps.prepare.outputs.status == 'prepared'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.TECH_BRIEF_PUBLISHER_CLIENT_ID }}
+          private-key: ${{ secrets.TECH_BRIEF_PUBLISHER_APP_KEY }}
+          permission-contents: write
+      # The token reaches Git only through a credential helper set in this
+      # step's env block, never in a URL, the command line or .git/config.
+      - name: Push the public edition to main
+        if: steps.prepare.outputs.status == 'prepared'
+        env:
+          PUBLISHER_TOKEN: ${{ steps.publisher-token.outputs.token }}
+          GIT_CONFIG_COUNT: "2"
+          GIT_CONFIG_KEY_0: credential.helper
+          GIT_CONFIG_VALUE_0: ""
+          GIT_CONFIG_KEY_1: credential.helper
+          GIT_CONFIG_VALUE_1: '!f() { if test "$1" = get; then printf "username=x-access-token\npassword=%s\n" "$PUBLISHER_TOKEN"; fi; }; f'
+        run: git push origin HEAD:main
       - name: Restore the content folder after a failure
         if: failure()
         run: git checkout -- src/content/tech-brief && git clean -fd -- src/content/tech-brief
