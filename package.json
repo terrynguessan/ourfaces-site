@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test:contact": "node --test \"tests/contact/*.test.mjs\""
   },
   "dependencies": {
     "next": "^16.4.1",
