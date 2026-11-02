@@ -1,0 +1,169 @@
+# TEMPORARY (Security Work Package 2): OurFaces Publisher App rehearsal.
+# Remove this file and scripts/tech-brief/test/publisher-rehearsal.test.mjs
+# once the rehearsal has run.
+#
+# On the isolated branch rehearsal/publisher-app, protected by a temporary
+# ruleset that mirrors the proposed Stage 2 rules for main, it proves:
+#   1. unauthorized: the workflow's GITHUB_TOKEN (contents: write, not a bypass
+#      actor) cannot push directly; the push must fail with a rule violation;
+#   2. publisher: an App token created exactly as in tech-brief-publish.yml
+#      reaches this repository only, cannot change workflow files, and its
+#      direct push is accepted through the ruleset bypass;
+#   3. untouched: main and the ledger branch did not move.
+# Every pushed commit is empty and goes only to the rehearsal branch; nothing
+# is published, committed to main or written to the ledger. Manual only, from
+# main (the tech-brief-publish environment accepts only main). It has its own
+# concurrency group, so it can never cancel a pending research or publication
+# run; dispatch it only while no Tech Brief run is queued or in progress.
+
+name: Tech Brief publisher rehearsal
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: tech-brief-publisher-rehearsal
+  cancel-in-progress: false
+
+env:
+  REHEARSAL_BRANCH: rehearsal/publisher-app
+
+jobs:
+  unauthorized:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    outputs:
+      ledger: ${{ steps.before.outputs.ledger }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - id: before
+        name: Record the starting point
+        run: |
+          ledger="$(git ls-remote origin refs/heads/tech-brief-ledger | cut -f1)"
+          branch="$(git ls-remote origin "refs/heads/$REHEARSAL_BRANCH" | cut -f1)"
+          echo "main=$GITHUB_SHA ledger=$ledger $REHEARSAL_BRANCH=$branch"
+          test -n "$ledger"
+          if [ "$branch" != "$GITHUB_SHA" ]; then
+            echo "::error::$REHEARSAL_BRANCH must exist at the dispatched main commit"
+            exit 1
+          fi
+          echo "ledger=$ledger" >> "$GITHUB_OUTPUT"
+      - name: A direct push with the workflow token must be refused
+        env:
+          PUSH_TOKEN: ${{ github.token }}
+          GIT_CONFIG_COUNT: "2"
+          GIT_CONFIG_KEY_0: credential.helper
+          GIT_CONFIG_VALUE_0: ""
+          GIT_CONFIG_KEY_1: credential.helper
+          GIT_CONFIG_VALUE_1: '!f() { if test "$1" = get; then printf "username=x-access-token\npassword=%s\n" "$PUSH_TOKEN"; fi; }; f'
+        run: |
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit --allow-empty -q -m "Publisher rehearsal: workflow token push (must be refused)"
+          if git push origin "HEAD:refs/heads/$REHEARSAL_BRANCH" 2> "$RUNNER_TEMP/unauthorized.err"; then
+            echo "::error::The workflow token pushed past the ruleset"
+            exit 1
+          fi
+          cat "$RUNNER_TEMP/unauthorized.err"
+          grep -qiE "GH013|rule violation" "$RUNNER_TEMP/unauthorized.err"
+          echo "Refused by the ruleset, as required."
+
+  publisher:
+    needs: unauthorized
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: tech-brief-publish
+    permissions:
+      contents: read
+    outputs:
+      commit: ${{ steps.commit.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - id: commit
+        name: Prepare an empty commit
+        run: |
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit --allow-empty -q -m "Publisher rehearsal: authorized App push"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      # Created exactly as in tech-brief-publish.yml.
+      - id: publisher-token
+        name: Create a short-lived publisher token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.TECH_BRIEF_PUBLISHER_CLIENT_ID }}
+          private-key: ${{ secrets.TECH_BRIEF_PUBLISHER_APP_KEY }}
+          permission-contents: write
+      - name: Check the token's reach, then push through the bypass
+        env:
+          PUBLISHER_TOKEN: ${{ steps.publisher-token.outputs.token }}
+          GIT_CONFIG_COUNT: "2"
+          GIT_CONFIG_KEY_0: credential.helper
+          GIT_CONFIG_VALUE_0: ""
+          GIT_CONFIG_KEY_1: credential.helper
+          GIT_CONFIG_VALUE_1: '!f() { if test "$1" = get; then printf "username=x-access-token\npassword=%s\n" "$PUBLISHER_TOKEN"; fi; }; f'
+        run: |
+          repos="$(GH_TOKEN="$PUBLISHER_TOKEN" gh api installation/repositories --jq '[.repositories[].full_name] | join(",")')"
+          echo "Token repositories: $repos"
+          test "$repos" = "$GITHUB_REPOSITORY"
+          authorized="$(git rev-parse HEAD)"
+          mkdir -p .github/workflows
+          printf '%s\n' "name: Publisher rehearsal probe" "on: workflow_dispatch" "jobs:" "  probe:" "    if: false" \
+            "    runs-on: ubuntu-latest" "    steps:" "      - run: echo inert" > .github/workflows/publisher-rehearsal-probe.yml
+          git add .github/workflows/publisher-rehearsal-probe.yml
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "Publisher rehearsal: workflow file probe (must be refused)"
+          if git push origin "HEAD:refs/heads/$REHEARSAL_BRANCH" 2> "$RUNNER_TEMP/probe.err"; then
+            echo "::error::The App token changed a workflow file"
+            exit 1
+          fi
+          cat "$RUNNER_TEMP/probe.err"
+          grep -qiE "without .?workflows.? permission" "$RUNNER_TEMP/probe.err"
+          echo "Workflow file change refused, as required."
+          git reset -q --hard "$authorized"
+          git push origin "HEAD:refs/heads/$REHEARSAL_BRANCH"
+          test "$(git ls-remote origin "refs/heads/$REHEARSAL_BRANCH" | cut -f1)" = "$authorized"
+          echo "App push accepted through the ruleset bypass."
+
+  untouched:
+    needs: [unauthorized, publisher]
+    if: always() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: main and the ledger did not move
+        env:
+          LEDGER_BEFORE: ${{ needs.unauthorized.outputs.ledger }}
+          APP_COMMIT: ${{ needs.publisher.outputs.commit }}
+          UNAUTHORIZED: ${{ needs.unauthorized.result }}
+          PUBLISHER: ${{ needs.publisher.result }}
+        run: |
+          remote="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          main="$(git ls-remote "$remote" refs/heads/main | cut -f1)"
+          ledger="$(git ls-remote "$remote" refs/heads/tech-brief-ledger | cut -f1)"
+          branch="$(git ls-remote "$remote" "refs/heads/$REHEARSAL_BRANCH" | cut -f1)"
+          {
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| Workflow token push refused | $UNAUTHORIZED |"
+            echo "| App token: this repository only, no workflow changes, push accepted | $PUBLISHER |"
+            echo "| main | $main (dispatched $GITHUB_SHA) |"
+            echo "| tech-brief-ledger | $ledger (before $LEDGER_BEFORE) |"
+            echo "| $REHEARSAL_BRANCH | $branch (App commit $APP_COMMIT) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$main" = "$GITHUB_SHA"
+          test -n "$LEDGER_BEFORE" && test "$ledger" = "$LEDGER_BEFORE"
+          test "$UNAUTHORIZED" = success && test "$PUBLISHER" = success
+          test "$branch" = "$APP_COMMIT"
