@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "edition": "2026-11-07",
+  "publishedOn": "2026-11-08",
+  "stories": [
+    {
+      "id": "s1",
+      "category": "emerging-technology",
+      "url": "https://techcrunch.com/2026/11/04/meta-acquires-ai-coding-startup-conductor/",
+      "publisher": "TechCrunch",
+      "sourcePublishedOn": "2026-11-04",
+      "sourceHeadline": "Meta acquires AI coding startup Conductor",
+      "sourceHeadlineLang": "en",
+      "en": {
+        "headline": "Meta acquires AI coding startup Conductor",
+        "summary": "Meta acquired Conductor, whose agentic teams are designed to help software engineers coordinate work on separate parts of a project. The platform deploys agents from major labs, including Anthropic and OpenAI, rather than developing them internally.",
+        "whyItMatters": "For software engineers, Conductor’s agentic teams are designed to support coordinated work across compartmentalized parts of a project."
+      },
+      "fr": {
+        "headline": "Meta rachète Conductor, une start-up spécialisée dans les agents de programmation",
+        "summary": "Meta a acquis Conductor, dont les équipes d’agents sont conçues pour aider les ingénieurs logiciels à coordonner leur travail sur des parties distinctes d’un projet. La plateforme déploie des agents issus de grands laboratoires, notamment Anthropic et OpenAI, plutôt que de les développer en interne.",
+        "whyItMatters": "Pour les ingénieurs logiciels, les équipes d’agents de Conductor sont conçues pour coordonner le travail sur des parties cloisonnées d’un projet."
+      }
+    },
+    {
+      "id": "s2",
+      "category": "development-practices",
+      "url": "https://cloud.google.com/blog/topics/developers-practitioners/evaluate-agent-skills-before-they-bloat-your-context-window/",
+      "publisher": "Google Cloud Blog",
+      "sourcePublishedOn": "2026-11-03",
+      "sourceHeadline": "Evaluate agent skills before they bloat your context window",
+      "sourceHeadlineLang": "en",
+      "en": {
+        "headline": "Google Cloud outlines five rules for evaluating skills",
+        "summary": "Google Cloud presents five rules for assessing skills’ token value and says it open-sourced skill-reach to detect frontmatter collisions before container-sandbox spending. In its retrieval study, over a third of benchmark tasks scored differently across consecutive runs of identical code and prompts. Its AlphaEvolve retrieval experiments found four ways to game benchmarks without solving the task.",
+        "whyItMatters": "Developers evaluating skills have a five-rule playbook and skill-reach for checking token value and detecting frontmatter collisions before spending on container sandboxes."
+      },
+      "fr": {
+        "headline": "Google Cloud propose cinq règles pour évaluer les skills",
+        "summary": "Google Cloud présente cinq règles pour évaluer si les skills valent leur coût en tokens et indique avoir publié skill-reach en open source pour détecter les collisions de frontmatter avant toute dépense en sandbox conteneurisée. Dans son étude de recherche d’information, plus d’un tiers des tâches obtenaient des scores différents entre exécutions consécutives du même code et du même prompt. Ses expériences AlphaEvolve de recherche d’information ont révélé quatre façons de contourner le benchmark sans résoudre la tâche.",
+        "whyItMatters": "Les développeurs qui évaluent des skills disposent de cinq règles et de skill-reach pour vérifier s’ils valent leur coût en tokens et détecter les collisions de frontmatter avant d’engager des dépenses en sandbox conteneurisée."
+      }
+    },
+    {
+      "id": "s3",
+      "category": "tools-techniques",
+      "url": "https://github.blog/changelog/2026-11-04-codeql-2-27-4-improves-accuracy-and-query-metadata/",
+      "publisher": "The GitHub Blog",
+      "sourcePublishedOn": "2026-11-04",
+      "sourceHeadline": "CodeQL 2.27.4 improves accuracy and query metadata",
+      "sourceHeadlineLang": "en",
+      "en": {
+        "headline": "CodeQL 2.27.4 updates query accuracy and pack security checks",
+        "summary": "GitHub reports that CodeQL 2.27.4 improves query accuracy across several languages, strengthens checks when bundling or publishing packs, and corrects query metadata. The java/log-injection query recognizes additional sanitizers and sanitizer guards from several libraries and frameworks. The CLI sends Java virtual machine warnings and initialization errors to standard error.",
+        "whyItMatters": "Teams bundling or publishing CodeQL packs get stronger security checks. Developers using java/log-injection have additional sanitizers and sanitizer guards recognized, while CLI users receive JVM warnings and initialization errors on standard error."
+      },
+      "fr": {
+        "headline": "CodeQL 2.27.4 améliore la précision des requêtes et les contrôles de sécurité des paquets",
+        "summary": "GitHub indique que CodeQL 2.27.4 améliore la précision des requêtes dans plusieurs langages, renforce les contrôles lors de l’assemblage ou de la publication de paquets et corrige les métadonnées des requêtes. La requête java/log-injection reconnaît davantage de sanitizers et de sanitizer guards dans plusieurs bibliothèques et frameworks. La CLI dirige les avertissements de la machine virtuelle Java et les erreurs d’initialisation vers la sortie d’erreur standard.",
+        "whyItMatters": "Les équipes assemblant ou publiant des paquets CodeQL disposent de contrôles renforcés. La requête java/log-injection reconnaît davantage de sanitizers et de sanitizer guards ; les utilisateurs de la CLI reçoivent les avertissements JVM et erreurs d’initialisation sur la sortie d’erreur standard."
+      }
+    },
+    {
+      "id": "s4",
+      "category": "tools-techniques",
+      "url": "https://supabase.com/changelog/supabase-cli-v3",
+      "publisher": "Supabase",
+      "sourcePublishedOn": "2026-11-04",
+      "sourceHeadline": "Breaking Change: Supabase CLI v3 is local by default and confirms hosted changes",
+      "sourceHeadlineLang": "en",
+      "en": {
+        "headline": "Supabase CLI v3 defaults to local databases and confirms hosted changes",
+        "summary": "Supabase announced CLI v3.0.0; npm, Scoop, Linux packages and supabase/setup-cli now install v3 by default. Database commands target the local stack unless --remote is passed. Hosted-project changes require confirmation, defaulting to No. Configuration precedence is flags, shell environment, project environment files, configuration file, then defaults.",
+        "whyItMatters": "CLI users must pass --remote to target a remote database. Changes to hosted projects prompt for confirmation with No selected by default, and configuration follows the stated precedence order."
+      },
+      "fr": {
+        "headline": "Supabase CLI v3 : commandes de base de données locales par défaut et confirmation des modifications hébergées",
+        "summary": "Supabase annonce la CLI v3.0.0 ; npm, Scoop, les paquets Linux et supabase/setup-cli installent désormais v3 par défaut. Les commandes de base de données ciblent la stack locale, sauf avec --remote. Les modifications d’un projet hébergé demandent confirmation, avec Non par défaut. La priorité de configuration est : options de commande, environnement du shell, fichiers d’environnement du projet, fichier de configuration, puis valeurs par défaut.",
+        "whyItMatters": "Les utilisateurs de la CLI doivent passer --remote pour cibler une base distante. Les modifications des projets hébergés demandent confirmation, avec Non sélectionné par défaut, et la configuration suit l’ordre de priorité indiqué."
+      }
+    }
+  ]
+}
