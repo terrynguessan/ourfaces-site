@@ -1,82 +1,82 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-11-07",
-  "publishedOn": "2026-11-08",
+  "edition": "2026-11-14",
+  "publishedOn": "2026-11-15",
   "stories": [
     {
       "id": "s1",
       "category": "emerging-technology",
-      "url": "https://techcrunch.com/2026/11/04/meta-acquires-ai-coding-startup-conductor/",
-      "publisher": "TechCrunch",
-      "sourcePublishedOn": "2026-11-04",
-      "sourceHeadline": "Meta acquires AI coding startup Conductor",
+      "url": "https://www.microsoft.com/en-us/security/blog/2026/11/12/trained-to-betray-how-post-training-supply-chain-attacks-hijack-coding-agents/",
+      "publisher": "Microsoft Security Blog",
+      "sourcePublishedOn": "2026-11-12",
+      "sourceHeadline": "Trained to betray: How post-training supply chain attacks hijack coding agents",
       "sourceHeadlineLang": "en",
       "en": {
-        "headline": "Meta acquires AI coding startup Conductor",
-        "summary": "Meta acquired Conductor, whose agentic teams are designed to help software engineers coordinate work on separate parts of a project. The platform deploys agents from major labs, including Anthropic and OpenAI, rather than developing them internally.",
-        "whyItMatters": "For software engineers, Conductor’s agentic teams are designed to support coordinated work across compartmentalized parts of a project."
+        "headline": "Microsoft reports coding-agent backdoor results across models and harnesses",
+        "summary": "Microsoft reports 84.1%–94.8% backdoor activation on unseen data in its strongest model-poisoning configuration. Attack success varied across Claude Code, Pi and Codex CLI. Removing trigger- and action-related reasoning from poisoned examples reduced attack success on unseen repositories to 1.0% for the 4B model and 0% for the 9B model.",
+        "whyItMatters": "For teams evaluating coding agents, reported attack success differed by harness; removing trigger- and action-related reasoning from poisoned examples also changed results on unseen repositories."
       },
       "fr": {
-        "headline": "Meta rachète Conductor, une start-up spécialisée dans les agents de programmation",
-        "summary": "Meta a acquis Conductor, dont les équipes d’agents sont conçues pour aider les ingénieurs logiciels à coordonner leur travail sur des parties distinctes d’un projet. La plateforme déploie des agents issus de grands laboratoires, notamment Anthropic et OpenAI, plutôt que de les développer en interne.",
-        "whyItMatters": "Pour les ingénieurs logiciels, les équipes d’agents de Conductor sont conçues pour coordonner le travail sur des parties cloisonnées d’un projet."
+        "headline": "Microsoft rapporte les résultats de portes dérobées selon les modèles et environnements d’agents",
+        "summary": "Microsoft rapporte un taux d’activation de porte dérobée de 84,1 % à 94,8 % sur des données inédites avec sa configuration d’empoisonnement de modèle la plus efficace. La réussite variait entre Claude Code, Pi et Codex CLI. Retirer des exemples empoisonnés le raisonnement lié aux déclencheurs et aux actions ramenait la réussite sur des dépôts inédits à 1,0 % pour le modèle 4B et à 0 % pour le modèle 9B.",
+        "whyItMatters": "Pour les équipes évaluant des agents de programmation, la réussite rapportée variait selon l’environnement d’exécution ; retirer des exemples empoisonnés le raisonnement lié aux déclencheurs et aux actions modifiait aussi les résultats sur des dépôts inédits."
       }
     },
     {
       "id": "s2",
-      "category": "development-practices",
-      "url": "https://cloud.google.com/blog/topics/developers-practitioners/evaluate-agent-skills-before-they-bloat-your-context-window/",
-      "publisher": "Google Cloud Blog",
-      "sourcePublishedOn": "2026-11-03",
-      "sourceHeadline": "Evaluate agent skills before they bloat your context window",
+      "category": "tools-techniques",
+      "url": "https://aws.amazon.com/blogs/aws/test-your-applications-against-aws-locally-with-aws-emulator/",
+      "publisher": "Amazon Web Services",
+      "sourcePublishedOn": "2026-11-11",
+      "sourceHeadline": "Test your applications against AWS locally with AWS Emulator | Amazon Web Services",
       "sourceHeadlineLang": "en",
       "en": {
-        "headline": "Google Cloud outlines five rules for evaluating skills",
-        "summary": "Google Cloud presents five rules for assessing skills’ token value and says it open-sourced skill-reach to detect frontmatter collisions before container-sandbox spending. In its retrieval study, over a third of benchmark tasks scored differently across consecutive runs of identical code and prompts. Its AlphaEvolve retrieval experiments found four ways to game benchmarks without solving the task.",
-        "whyItMatters": "Developers evaluating skills have a five-rule playbook and skill-reach for checking token value and detecting frontmatter collisions before spending on container sandboxes."
+        "headline": "AWS announces local emulator with embedded mode for Rust",
+        "summary": "Amazon Web Services announced AWS Emulator, which runs locally on a user's machine. Embedded mode is available for the AWS SDK for Rust. AWS checks each fidelity test against real AWS, but the emulator does not evaluate IAM policies the same way AWS does.",
+        "whyItMatters": "Rust developers have an embedded mode available; teams working with IAM policies need to note that the emulator's policy evaluation differs from AWS."
       },
       "fr": {
-        "headline": "Google Cloud propose cinq règles pour évaluer les skills",
-        "summary": "Google Cloud présente cinq règles pour évaluer si les skills valent leur coût en tokens et indique avoir publié skill-reach en open source pour détecter les collisions de frontmatter avant toute dépense en sandbox conteneurisée. Dans son étude de recherche d’information, plus d’un tiers des tâches obtenaient des scores différents entre exécutions consécutives du même code et du même prompt. Ses expériences AlphaEvolve de recherche d’information ont révélé quatre façons de contourner le benchmark sans résoudre la tâche.",
-        "whyItMatters": "Les développeurs qui évaluent des skills disposent de cinq règles et de skill-reach pour vérifier s’ils valent leur coût en tokens et détecter les collisions de frontmatter avant d’engager des dépenses en sandbox conteneurisée."
+        "headline": "AWS annonce un émulateur local avec un mode intégré pour Rust",
+        "summary": "Amazon Web Services annonce AWS Emulator, qui s’exécute localement sur la machine de l’utilisateur. Un mode intégré est disponible pour le SDK AWS pour Rust. AWS vérifie chaque test de fidélité par rapport à AWS réel, mais l’émulateur n’évalue pas les politiques IAM de la même manière qu’AWS.",
+        "whyItMatters": "Les développeurs Rust disposent d’un mode intégré ; les équipes qui utilisent des politiques IAM doivent tenir compte d’une évaluation différente de celle d’AWS."
       }
     },
     {
       "id": "s3",
       "category": "tools-techniques",
-      "url": "https://github.blog/changelog/2026-11-04-codeql-2-27-4-improves-accuracy-and-query-metadata/",
-      "publisher": "The GitHub Blog",
-      "sourcePublishedOn": "2026-11-04",
-      "sourceHeadline": "CodeQL 2.27.4 improves accuracy and query metadata",
+      "url": "https://developer.wordpress.org/news/2026/11/whats-new-for-developers-november-2026/",
+      "publisher": "WordPress Developer Blog",
+      "sourcePublishedOn": "2026-11-13",
+      "sourceHeadline": "What’s new for developers? (November 2026)",
       "sourceHeadlineLang": "en",
       "en": {
-        "headline": "CodeQL 2.27.4 updates query accuracy and pack security checks",
-        "summary": "GitHub reports that CodeQL 2.27.4 improves query accuracy across several languages, strengthens checks when bundling or publishing packs, and corrects query metadata. The java/log-injection query recognizes additional sanitizers and sanitizer guards from several libraries and frameworks. The CLI sends Java virtual machine warnings and initialization errors to standard error.",
-        "whyItMatters": "Teams bundling or publishing CodeQL packs get stronger security checks. Developers using java/log-injection have additional sanitizers and sanitizer guards recognized, while CLI users receive JVM warnings and initialization errors on standard error."
+        "headline": "WordPress 7.2 Beta 5 released; Secrets API encrypts credentials at rest",
+        "summary": "The WordPress Developer Blog reports the release of WordPress 7.2 Beta 5. WordPress 7.2 adds a Secrets API that encrypts credentials at rest. WordPress also prefetches assets likely needed by the next screen. The Reprint plugin lets Playground copy a live WordPress site into the browser, including its files and database.",
+        "whyItMatters": "For developers, the Secrets API encrypts stored credentials, while Reprint lets Playground copy a live WordPress site's files and database into the browser."
       },
       "fr": {
-        "headline": "CodeQL 2.27.4 améliore la précision des requêtes et les contrôles de sécurité des paquets",
-        "summary": "GitHub indique que CodeQL 2.27.4 améliore la précision des requêtes dans plusieurs langages, renforce les contrôles lors de l’assemblage ou de la publication de paquets et corrige les métadonnées des requêtes. La requête java/log-injection reconnaît davantage de sanitizers et de sanitizer guards dans plusieurs bibliothèques et frameworks. La CLI dirige les avertissements de la machine virtuelle Java et les erreurs d’initialisation vers la sortie d’erreur standard.",
-        "whyItMatters": "Les équipes assemblant ou publiant des paquets CodeQL disposent de contrôles renforcés. La requête java/log-injection reconnaît davantage de sanitizers et de sanitizer guards ; les utilisateurs de la CLI reçoivent les avertissements JVM et erreurs d’initialisation sur la sortie d’erreur standard."
+        "headline": "WordPress 7.2 Beta 5 disponible ; l’API Secrets chiffre les identifiants au repos",
+        "summary": "Le WordPress Developer Blog annonce la sortie de WordPress 7.2 Beta 5. WordPress 7.2 ajoute une API Secrets qui chiffre les identifiants au repos. WordPress précharge aussi les ressources dont l’écran suivant aura probablement besoin. L’extension Reprint permet à Playground de copier dans le navigateur un site WordPress en ligne, avec ses fichiers et sa base de données.",
+        "whyItMatters": "Pour les développeurs, l’API Secrets chiffre les identifiants stockés, tandis que Reprint permet à Playground de copier les fichiers et la base de données d’un site WordPress en ligne dans le navigateur."
       }
     },
     {
       "id": "s4",
-      "category": "tools-techniques",
-      "url": "https://supabase.com/changelog/supabase-cli-v3",
-      "publisher": "Supabase",
-      "sourcePublishedOn": "2026-11-04",
-      "sourceHeadline": "Breaking Change: Supabase CLI v3 is local by default and confirms hosted changes",
-      "sourceHeadlineLang": "en",
+      "category": "emerging-technology",
+      "url": "https://claude.com/resources/articles/self-hosted-claude-managed-agents",
+      "publisher": "Claude",
+      "sourcePublishedOn": "2026-11-12",
+      "sourceHeadline": "Operate Claude Managed Agents inside your security perimeter",
+      "sourceHeadlineLang": "de",
       "en": {
-        "headline": "Supabase CLI v3 defaults to local databases and confirms hosted changes",
-        "summary": "Supabase announced CLI v3.0.0; npm, Scoop, Linux packages and supabase/setup-cli now install v3 by default. Database commands target the local stack unless --remote is passed. Hosted-project changes require confirmation, defaulting to No. Configuration precedence is flags, shell environment, project environment files, configuration file, then defaults.",
-        "whyItMatters": "CLI users must pass --remote to target a remote database. Changes to hosted projects prompt for confirmation with No selected by default, and configuration follows the stated precedence order."
+        "headline": "Self-hosted Claude Managed Agents available in private beta",
+        "summary": "Claude says self-hosted Managed Agents is available in private beta. The service runs in the customer's cloud or on-premise, including its harness, sandboxes, credentials and session history. Vaults are designed to keep credentials outside the sandbox. Agent steps, including tool calls and results, are recorded and exported through OpenTelemetry.",
+        "whyItMatters": "IT teams can run the service in their own cloud or on-premise and export agent-step records through OpenTelemetry; vaults are designed to keep credentials outside the sandbox."
       },
       "fr": {
-        "headline": "Supabase CLI v3 : commandes de base de données locales par défaut et confirmation des modifications hébergées",
-        "summary": "Supabase annonce la CLI v3.0.0 ; npm, Scoop, les paquets Linux et supabase/setup-cli installent désormais v3 par défaut. Les commandes de base de données ciblent la stack locale, sauf avec --remote. Les modifications d’un projet hébergé demandent confirmation, avec Non par défaut. La priorité de configuration est : options de commande, environnement du shell, fichiers d’environnement du projet, fichier de configuration, puis valeurs par défaut.",
-        "whyItMatters": "Les utilisateurs de la CLI doivent passer --remote pour cibler une base distante. Les modifications des projets hébergés demandent confirmation, avec Non sélectionné par défaut, et la configuration suit l’ordre de priorité indiqué."
+        "headline": "Claude Managed Agents disponible en version auto-hébergée, en bêta privée",
+        "summary": "Claude annonce la disponibilité de Managed Agents en version auto-hébergée, en bêta privée. Le service s’exécute dans le cloud du client ou sur site, avec son environnement d’exécution, ses bacs à sable, ses identifiants et son historique de sessions. Les coffres-forts sont conçus pour garder les identifiants hors du bac à sable. Les étapes des agents, dont les appels d’outils et leurs résultats, sont enregistrées et exportées via OpenTelemetry.",
+        "whyItMatters": "Les équipes informatiques peuvent exécuter le service dans leur cloud ou sur site et exporter les étapes des agents via OpenTelemetry ; les coffres-forts sont conçus pour garder les identifiants hors du bac à sable."
       }
     }
   ]

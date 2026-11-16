@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "edition": "2026-11-14",
+  "publishedOn": "2026-11-15",
+  "stories": [
+    {
+      "id": "s1",
+      "category": "emerging-technology",
+      "url": "https://www.microsoft.com/en-us/security/blog/2026/11/12/trained-to-betray-how-post-training-supply-chain-attacks-hijack-coding-agents/",
+      "publisher": "Microsoft Security Blog",
+      "sourcePublishedOn": "2026-11-12",
+      "sourceHeadline": "Trained to betray: How post-training supply chain attacks hijack coding agents",
+      "sourceHeadlineLang": "en",
+      "en": {
+        "headline": "Microsoft reports coding-agent backdoor results across models and harnesses",
+        "summary": "Microsoft reports 84.1%–94.8% backdoor activation on unseen data in its strongest model-poisoning configuration. Attack success varied across Claude Code, Pi and Codex CLI. Removing trigger- and action-related reasoning from poisoned examples reduced attack success on unseen repositories to 1.0% for the 4B model and 0% for the 9B model.",
+        "whyItMatters": "For teams evaluating coding agents, reported attack success differed by harness; removing trigger- and action-related reasoning from poisoned examples also changed results on unseen repositories."
+      },
+      "fr": {
+        "headline": "Microsoft rapporte les résultats de portes dérobées selon les modèles et environnements d’agents",
+        "summary": "Microsoft rapporte un taux d’activation de porte dérobée de 84,1 % à 94,8 % sur des données inédites avec sa configuration d’empoisonnement de modèle la plus efficace. La réussite variait entre Claude Code, Pi et Codex CLI. Retirer des exemples empoisonnés le raisonnement lié aux déclencheurs et aux actions ramenait la réussite sur des dépôts inédits à 1,0 % pour le modèle 4B et à 0 % pour le modèle 9B.",
+        "whyItMatters": "Pour les équipes évaluant des agents de programmation, la réussite rapportée variait selon l’environnement d’exécution ; retirer des exemples empoisonnés le raisonnement lié aux déclencheurs et aux actions modifiait aussi les résultats sur des dépôts inédits."
+      }
+    },
+    {
+      "id": "s2",
+      "category": "tools-techniques",
+      "url": "https://aws.amazon.com/blogs/aws/test-your-applications-against-aws-locally-with-aws-emulator/",
+      "publisher": "Amazon Web Services",
+      "sourcePublishedOn": "2026-11-11",
+      "sourceHeadline": "Test your applications against AWS locally with AWS Emulator | Amazon Web Services",
+      "sourceHeadlineLang": "en",
+      "en": {
+        "headline": "AWS announces local emulator with embedded mode for Rust",
+        "summary": "Amazon Web Services announced AWS Emulator, which runs locally on a user's machine. Embedded mode is available for the AWS SDK for Rust. AWS checks each fidelity test against real AWS, but the emulator does not evaluate IAM policies the same way AWS does.",
+        "whyItMatters": "Rust developers have an embedded mode available; teams working with IAM policies need to note that the emulator's policy evaluation differs from AWS."
+      },
+      "fr": {
+        "headline": "AWS annonce un émulateur local avec un mode intégré pour Rust",
+        "summary": "Amazon Web Services annonce AWS Emulator, qui s’exécute localement sur la machine de l’utilisateur. Un mode intégré est disponible pour le SDK AWS pour Rust. AWS vérifie chaque test de fidélité par rapport à AWS réel, mais l’émulateur n’évalue pas les politiques IAM de la même manière qu’AWS.",
+        "whyItMatters": "Les développeurs Rust disposent d’un mode intégré ; les équipes qui utilisent des politiques IAM doivent tenir compte d’une évaluation différente de celle d’AWS."
+      }
+    },
+    {
+      "id": "s3",
+      "category": "tools-techniques",
+      "url": "https://developer.wordpress.org/news/2026/11/whats-new-for-developers-november-2026/",
+      "publisher": "WordPress Developer Blog",
+      "sourcePublishedOn": "2026-11-13",
+      "sourceHeadline": "What’s new for developers? (November 2026)",
+      "sourceHeadlineLang": "en",
+      "en": {
+        "headline": "WordPress 7.2 Beta 5 released; Secrets API encrypts credentials at rest",
+        "summary": "The WordPress Developer Blog reports the release of WordPress 7.2 Beta 5. WordPress 7.2 adds a Secrets API that encrypts credentials at rest. WordPress also prefetches assets likely needed by the next screen. The Reprint plugin lets Playground copy a live WordPress site into the browser, including its files and database.",
+        "whyItMatters": "For developers, the Secrets API encrypts stored credentials, while Reprint lets Playground copy a live WordPress site's files and database into the browser."
+      },
+      "fr": {
+        "headline": "WordPress 7.2 Beta 5 disponible ; l’API Secrets chiffre les identifiants au repos",
+        "summary": "Le WordPress Developer Blog annonce la sortie de WordPress 7.2 Beta 5. WordPress 7.2 ajoute une API Secrets qui chiffre les identifiants au repos. WordPress précharge aussi les ressources dont l’écran suivant aura probablement besoin. L’extension Reprint permet à Playground de copier dans le navigateur un site WordPress en ligne, avec ses fichiers et sa base de données.",
+        "whyItMatters": "Pour les développeurs, l’API Secrets chiffre les identifiants stockés, tandis que Reprint permet à Playground de copier les fichiers et la base de données d’un site WordPress en ligne dans le navigateur."
+      }
+    },
+    {
+      "id": "s4",
+      "category": "emerging-technology",
+      "url": "https://claude.com/resources/articles/self-hosted-claude-managed-agents",
+      "publisher": "Claude",
+      "sourcePublishedOn": "2026-11-12",
+      "sourceHeadline": "Operate Claude Managed Agents inside your security perimeter",
+      "sourceHeadlineLang": "de",
+      "en": {
+        "headline": "Self-hosted Claude Managed Agents available in private beta",
+        "summary": "Claude says self-hosted Managed Agents is available in private beta. The service runs in the customer's cloud or on-premise, including its harness, sandboxes, credentials and session history. Vaults are designed to keep credentials outside the sandbox. Agent steps, including tool calls and results, are recorded and exported through OpenTelemetry.",
+        "whyItMatters": "IT teams can run the service in their own cloud or on-premise and export agent-step records through OpenTelemetry; vaults are designed to keep credentials outside the sandbox."
+      },
+      "fr": {
+        "headline": "Claude Managed Agents disponible en version auto-hébergée, en bêta privée",
+        "summary": "Claude annonce la disponibilité de Managed Agents en version auto-hébergée, en bêta privée. Le service s’exécute dans le cloud du client ou sur site, avec son environnement d’exécution, ses bacs à sable, ses identifiants et son historique de sessions. Les coffres-forts sont conçus pour garder les identifiants hors du bac à sable. Les étapes des agents, dont les appels d’outils et leurs résultats, sont enregistrées et exportées via OpenTelemetry.",
+        "whyItMatters": "Les équipes informatiques peuvent exécuter le service dans leur cloud ou sur site et exporter les étapes des agents via OpenTelemetry ; les coffres-forts sont conçus pour garder les identifiants hors du bac à sable."
+      }
+    }
+  ]
+}
