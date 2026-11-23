@@ -1,82 +1,82 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-11-14",
-  "publishedOn": "2026-11-15",
+  "edition": "2026-11-21",
+  "publishedOn": "2026-11-22",
   "stories": [
     {
       "id": "s1",
       "category": "emerging-technology",
-      "url": "https://www.microsoft.com/en-us/security/blog/2026/11/12/trained-to-betray-how-post-training-supply-chain-attacks-hijack-coding-agents/",
-      "publisher": "Microsoft Security Blog",
-      "sourcePublishedOn": "2026-11-12",
-      "sourceHeadline": "Trained to betray: How post-training supply chain attacks hijack coding agents",
+      "url": "https://aws.amazon.com/blogs/machine-learning/exa-boosts-embedding-throughput-by-50-to-index-billions-of-documents-on-aws-ai-chips/",
+      "publisher": "Amazon Web Services",
+      "sourcePublishedOn": "2026-11-18",
+      "sourceHeadline": "Exa boosts embedding throughput by 50% to index billions of documents on AWS AI chips | Amazon Web Services",
       "sourceHeadlineLang": "en",
       "en": {
-        "headline": "Microsoft reports coding-agent backdoor results across models and harnesses",
-        "summary": "Microsoft reports 84.1%–94.8% backdoor activation on unseen data in its strongest model-poisoning configuration. Attack success varied across Claude Code, Pi and Codex CLI. Removing trigger- and action-related reasoning from poisoned examples reduced attack success on unseen repositories to 1.0% for the 4B model and 0% for the 9B model.",
-        "whyItMatters": "For teams evaluating coding agents, reported attack success differed by harness; removing trigger- and action-related reasoning from poisoned examples also changed results on unseen repositories."
+        "headline": "AWS reports embedding throughput gain of roughly 1.5×",
+        "summary": "Amazon Web Services says its optimizations raised throughput to roughly 1.5× that of a naive compile. Against the initial baseline, the final implementation delivered a 47% improvement in performance and cost for embedding 1 million documents. HBM stalls were removed by a custom fused SwiGLU MLP kernel using a weight-stationary approach.",
+        "whyItMatters": "For document-embedding teams, AWS reports changes to throughput and to performance and cost for embedding 1 million documents, alongside the removal of HBM stalls."
       },
       "fr": {
-        "headline": "Microsoft rapporte les résultats de portes dérobées selon les modèles et environnements d’agents",
-        "summary": "Microsoft rapporte un taux d’activation de porte dérobée de 84,1 % à 94,8 % sur des données inédites avec sa configuration d’empoisonnement de modèle la plus efficace. La réussite variait entre Claude Code, Pi et Codex CLI. Retirer des exemples empoisonnés le raisonnement lié aux déclencheurs et aux actions ramenait la réussite sur des dépôts inédits à 1,0 % pour le modèle 4B et à 0 % pour le modèle 9B.",
-        "whyItMatters": "Pour les équipes évaluant des agents de programmation, la réussite rapportée variait selon l’environnement d’exécution ; retirer des exemples empoisonnés le raisonnement lié aux déclencheurs et aux actions modifiait aussi les résultats sur des dépôts inédits."
+        "headline": "AWS annonce un débit de vectorisation multiplié par environ 1,5",
+        "summary": "Amazon Web Services indique que ses optimisations ont multiplié le débit par environ 1,5 par rapport à une compilation naïve. L’implémentation finale a amélioré de 47 % les performances et le coût de vectorisation de 1 million de documents par rapport à la référence initiale. Un noyau MLP SwiGLU fusionné et personnalisé, selon une approche à poids stationnaires, a supprimé les blocages liés à la mémoire HBM.",
+        "whyItMatters": "Pour les équipes qui vectorisent des documents, AWS rapporte des changements de débit, de performances et de coût pour la vectorisation de 1 million de documents, ainsi que la suppression des blocages liés à la mémoire HBM."
       }
     },
     {
       "id": "s2",
       "category": "tools-techniques",
-      "url": "https://aws.amazon.com/blogs/aws/test-your-applications-against-aws-locally-with-aws-emulator/",
-      "publisher": "Amazon Web Services",
-      "sourcePublishedOn": "2026-11-11",
-      "sourceHeadline": "Test your applications against AWS locally with AWS Emulator | Amazon Web Services",
+      "url": "https://blog.google/innovation-and-ai/technology/developers-tools/gemini-api-tool-retrieval/",
+      "publisher": "Google",
+      "sourcePublishedOn": "2026-11-19",
+      "sourceHeadline": "Introducing Tool Retrieval in the Gemini API",
       "sourceHeadlineLang": "en",
       "en": {
-        "headline": "AWS announces local emulator with embedded mode for Rust",
-        "summary": "Amazon Web Services announced AWS Emulator, which runs locally on a user's machine. Embedded mode is available for the AWS SDK for Rust. AWS checks each fidelity test against real AWS, but the emulator does not evaluate IAM policies the same way AWS does.",
-        "whyItMatters": "Rust developers have an embedded mode available; teams working with IAM policies need to note that the emulator's policy evaluation differs from AWS."
+        "headline": "Google introduces preview of Tool Retrieval for the Gemini API",
+        "summary": "Google announced Gemini API’s Tool Retrieval, a preview feature within the Interactions API. Deferred tools expose names and descriptions, excluding parameter schemas from context. When needed, schema loading and the model’s function call occur within one request. Compatible models start with Gemini 3.6 and include every Gemini 4 model.",
+        "whyItMatters": "Developers using compatible models through the Interactions API can defer parameter schemas until a tool is needed; the API loads the schema and the model calls the function within one request."
       },
       "fr": {
-        "headline": "AWS annonce un émulateur local avec un mode intégré pour Rust",
-        "summary": "Amazon Web Services annonce AWS Emulator, qui s’exécute localement sur la machine de l’utilisateur. Un mode intégré est disponible pour le SDK AWS pour Rust. AWS vérifie chaque test de fidélité par rapport à AWS réel, mais l’émulateur n’évalue pas les politiques IAM de la même manière qu’AWS.",
-        "whyItMatters": "Les développeurs Rust disposent d’un mode intégré ; les équipes qui utilisent des politiques IAM doivent tenir compte d’une évaluation différente de celle d’AWS."
+        "headline": "Google présente Tool Retrieval en préversion pour l’API Gemini",
+        "summary": "Google annonce Tool Retrieval pour l’API Gemini, en préversion dans l’API Interactions. Les outils différés exposent leurs noms et descriptions, mais leurs schémas de paramètres restent hors du contexte. Au besoin, le chargement du schéma et l’appel de fonction par le modèle s’effectuent dans une même requête. Les modèles compatibles comprennent Gemini 3.6 et les versions ultérieures, dont tous les modèles Gemini 4.",
+        "whyItMatters": "Avec les modèles compatibles dans l’API Interactions, les développeurs peuvent différer l’inclusion des schémas de paramètres jusqu’à ce qu’un outil soit nécessaire ; l’API charge alors le schéma et le modèle appelle la fonction dans une même requête."
       }
     },
     {
       "id": "s3",
-      "category": "tools-techniques",
-      "url": "https://developer.wordpress.org/news/2026/11/whats-new-for-developers-november-2026/",
-      "publisher": "WordPress Developer Blog",
-      "sourcePublishedOn": "2026-11-13",
-      "sourceHeadline": "What’s new for developers? (November 2026)",
+      "category": "applied-ai",
+      "url": "https://engineering.fb.com/2026/11/18/ml-applications/ai-agents-to-scale-ml-innovations-across-ads-ranking-models/",
+      "publisher": "Engineering at Meta",
+      "sourcePublishedOn": "2026-11-18",
+      "sourceHeadline": "How Meta Uses AI Agents to Scale ML Innovations Across Ads Ranking Models",
       "sourceHeadlineLang": "en",
       "en": {
-        "headline": "WordPress 7.2 Beta 5 released; Secrets API encrypts credentials at rest",
-        "summary": "The WordPress Developer Blog reports the release of WordPress 7.2 Beta 5. WordPress 7.2 adds a Secrets API that encrypts credentials at rest. WordPress also prefetches assets likely needed by the next screen. The Reprint plugin lets Playground copy a live WordPress site into the browser, including its files and database.",
-        "whyItMatters": "For developers, the Secrets API encrypts stored credentials, while Reprint lets Playground copy a live WordPress site's files and database into the browser."
+        "headline": "Meta reports AI agents handle over 60% of technique propagation",
+        "summary": "Meta estimates agents handle over 60% of technique propagation since taking execution over in March 2026. It reports a median 4× reduction in training compute across select technique-model combinations and 92% less engineering time per model through standardization and automation. A technique must achieve a statistically significant online A/B test win before shipping.",
+        "whyItMatters": "For teams propagating techniques across models, Meta reports reduced engineering time through standardization and automation, while retaining statistically significant online A/B test wins as a requirement for shipping."
       },
       "fr": {
-        "headline": "WordPress 7.2 Beta 5 disponible ; l’API Secrets chiffre les identifiants au repos",
-        "summary": "Le WordPress Developer Blog annonce la sortie de WordPress 7.2 Beta 5. WordPress 7.2 ajoute une API Secrets qui chiffre les identifiants au repos. WordPress précharge aussi les ressources dont l’écran suivant aura probablement besoin. L’extension Reprint permet à Playground de copier dans le navigateur un site WordPress en ligne, avec ses fichiers et sa base de données.",
-        "whyItMatters": "Pour les développeurs, l’API Secrets chiffre les identifiants stockés, tandis que Reprint permet à Playground de copier les fichiers et la base de données d’un site WordPress en ligne dans le navigateur."
+        "headline": "Meta estime que les agents IA assurent plus de 60 % de la propagation des techniques",
+        "summary": "Meta estime que les agents assurent plus de 60 % de la propagation des techniques depuis qu’ils pilotent l’exécution, en mars 2026. Sur certaines combinaisons technique-modèle, Meta rapporte une division médiane par 4 du calcul d’entraînement, ainsi qu’une réduction de 92 % du temps d’ingénierie par modèle grâce à la standardisation et à l’automatisation. Le déploiement d’une technique exige un gain statistiquement significatif en test A/B en ligne.",
+        "whyItMatters": "Pour les équipes qui propagent des techniques entre modèles, Meta rapporte une réduction du temps d’ingénierie grâce à la standardisation et à l’automatisation, tout en exigeant un gain statistiquement significatif en test A/B en ligne avant déploiement."
       }
     },
     {
       "id": "s4",
       "category": "emerging-technology",
-      "url": "https://claude.com/resources/articles/self-hosted-claude-managed-agents",
-      "publisher": "Claude",
-      "sourcePublishedOn": "2026-11-12",
-      "sourceHeadline": "Operate Claude Managed Agents inside your security perimeter",
-      "sourceHeadlineLang": "de",
+      "url": "https://www.postgresql.org/about/news/postgresql-19-released-3449/",
+      "publisher": "PostgreSQL News",
+      "sourcePublishedOn": "2026-11-19",
+      "sourceHeadline": "PostgreSQL 19 Released!",
+      "sourceHeadlineLang": "en",
       "en": {
-        "headline": "Self-hosted Claude Managed Agents available in private beta",
-        "summary": "Claude says self-hosted Managed Agents is available in private beta. The service runs in the customer's cloud or on-premise, including its harness, sandboxes, credentials and session history. Vaults are designed to keep credentials outside the sandbox. Agent steps, including tool calls and results, are recorded and exported through OpenTelemetry.",
-        "whyItMatters": "IT teams can run the service in their own cloud or on-premise and export agent-step records through OpenTelemetry; vaults are designed to keep credentials outside the sandbox."
+        "headline": "PostgreSQL 19 adds plan controls and improves foreign key checks",
+        "summary": "PostgreSQL News reports that the PostgreSQL Global Development Group has released PostgreSQL 19. Its new pg_plan_advice extension lets users stabilize plan choices and experiment with different plans through a mini-language. In testing, improved foreign key checks made bulk inserts nearly twice as fast.",
+        "whyItMatters": "Database teams can use pg_plan_advice to stabilize plan choices or test alternatives. For bulk inserts, the reported speed improvement from foreign key checks was nearly twofold in testing."
       },
       "fr": {
-        "headline": "Claude Managed Agents disponible en version auto-hébergée, en bêta privée",
-        "summary": "Claude annonce la disponibilité de Managed Agents en version auto-hébergée, en bêta privée. Le service s’exécute dans le cloud du client ou sur site, avec son environnement d’exécution, ses bacs à sable, ses identifiants et son historique de sessions. Les coffres-forts sont conçus pour garder les identifiants hors du bac à sable. Les étapes des agents, dont les appels d’outils et leurs résultats, sont enregistrées et exportées via OpenTelemetry.",
-        "whyItMatters": "Les équipes informatiques peuvent exécuter le service dans leur cloud ou sur site et exporter les étapes des agents via OpenTelemetry ; les coffres-forts sont conçus pour garder les identifiants hors du bac à sable."
+        "headline": "PostgreSQL 19 ajoute le contrôle des plans et améliore les vérifications de clés étrangères",
+        "summary": "PostgreSQL News annonce la sortie de PostgreSQL 19 par le PostgreSQL Global Development Group. La nouvelle extension pg_plan_advice permet de stabiliser les choix de plans et d’expérimenter différents plans au moyen d’un mini-langage. Lors des tests, les vérifications améliorées des clés étrangères ont rendu les insertions en masse presque deux fois plus rapides.",
+        "whyItMatters": "Les équipes chargées des bases de données peuvent utiliser pg_plan_advice pour stabiliser les choix de plans ou tester des variantes. Pour les insertions en masse, l’amélioration des vérifications de clés étrangères a presque doublé la vitesse lors des tests."
       }
     }
   ]

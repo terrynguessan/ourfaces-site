@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "edition": "2026-11-21",
+  "publishedOn": "2026-11-22",
+  "stories": [
+    {
+      "id": "s1",
+      "category": "emerging-technology",
+      "url": "https://aws.amazon.com/blogs/machine-learning/exa-boosts-embedding-throughput-by-50-to-index-billions-of-documents-on-aws-ai-chips/",
+      "publisher": "Amazon Web Services",
+      "sourcePublishedOn": "2026-11-18",
+      "sourceHeadline": "Exa boosts embedding throughput by 50% to index billions of documents on AWS AI chips | Amazon Web Services",
+      "sourceHeadlineLang": "en",
+      "en": {
+        "headline": "AWS reports embedding throughput gain of roughly 1.5×",
+        "summary": "Amazon Web Services says its optimizations raised throughput to roughly 1.5× that of a naive compile. Against the initial baseline, the final implementation delivered a 47% improvement in performance and cost for embedding 1 million documents. HBM stalls were removed by a custom fused SwiGLU MLP kernel using a weight-stationary approach.",
+        "whyItMatters": "For document-embedding teams, AWS reports changes to throughput and to performance and cost for embedding 1 million documents, alongside the removal of HBM stalls."
+      },
+      "fr": {
+        "headline": "AWS annonce un débit de vectorisation multiplié par environ 1,5",
+        "summary": "Amazon Web Services indique que ses optimisations ont multiplié le débit par environ 1,5 par rapport à une compilation naïve. L’implémentation finale a amélioré de 47 % les performances et le coût de vectorisation de 1 million de documents par rapport à la référence initiale. Un noyau MLP SwiGLU fusionné et personnalisé, selon une approche à poids stationnaires, a supprimé les blocages liés à la mémoire HBM.",
+        "whyItMatters": "Pour les équipes qui vectorisent des documents, AWS rapporte des changements de débit, de performances et de coût pour la vectorisation de 1 million de documents, ainsi que la suppression des blocages liés à la mémoire HBM."
+      }
+    },
+    {
+      "id": "s2",
+      "category": "tools-techniques",
+      "url": "https://blog.google/innovation-and-ai/technology/developers-tools/gemini-api-tool-retrieval/",
+      "publisher": "Google",
+      "sourcePublishedOn": "2026-11-19",
+      "sourceHeadline": "Introducing Tool Retrieval in the Gemini API",
+      "sourceHeadlineLang": "en",
+      "en": {
+        "headline": "Google introduces preview of Tool Retrieval for the Gemini API",
+        "summary": "Google announced Gemini API’s Tool Retrieval, a preview feature within the Interactions API. Deferred tools expose names and descriptions, excluding parameter schemas from context. When needed, schema loading and the model’s function call occur within one request. Compatible models start with Gemini 3.6 and include every Gemini 4 model.",
+        "whyItMatters": "Developers using compatible models through the Interactions API can defer parameter schemas until a tool is needed; the API loads the schema and the model calls the function within one request."
+      },
+      "fr": {
+        "headline": "Google présente Tool Retrieval en préversion pour l’API Gemini",
+        "summary": "Google annonce Tool Retrieval pour l’API Gemini, en préversion dans l’API Interactions. Les outils différés exposent leurs noms et descriptions, mais leurs schémas de paramètres restent hors du contexte. Au besoin, le chargement du schéma et l’appel de fonction par le modèle s’effectuent dans une même requête. Les modèles compatibles comprennent Gemini 3.6 et les versions ultérieures, dont tous les modèles Gemini 4.",
+        "whyItMatters": "Avec les modèles compatibles dans l’API Interactions, les développeurs peuvent différer l’inclusion des schémas de paramètres jusqu’à ce qu’un outil soit nécessaire ; l’API charge alors le schéma et le modèle appelle la fonction dans une même requête."
+      }
+    },
+    {
+      "id": "s3",
+      "category": "applied-ai",
+      "url": "https://engineering.fb.com/2026/11/18/ml-applications/ai-agents-to-scale-ml-innovations-across-ads-ranking-models/",
+      "publisher": "Engineering at Meta",
+      "sourcePublishedOn": "2026-11-18",
+      "sourceHeadline": "How Meta Uses AI Agents to Scale ML Innovations Across Ads Ranking Models",
+      "sourceHeadlineLang": "en",
+      "en": {
+        "headline": "Meta reports AI agents handle over 60% of technique propagation",
+        "summary": "Meta estimates agents handle over 60% of technique propagation since taking execution over in March 2026. It reports a median 4× reduction in training compute across select technique-model combinations and 92% less engineering time per model through standardization and automation. A technique must achieve a statistically significant online A/B test win before shipping.",
+        "whyItMatters": "For teams propagating techniques across models, Meta reports reduced engineering time through standardization and automation, while retaining statistically significant online A/B test wins as a requirement for shipping."
+      },
+      "fr": {
+        "headline": "Meta estime que les agents IA assurent plus de 60 % de la propagation des techniques",
+        "summary": "Meta estime que les agents assurent plus de 60 % de la propagation des techniques depuis qu’ils pilotent l’exécution, en mars 2026. Sur certaines combinaisons technique-modèle, Meta rapporte une division médiane par 4 du calcul d’entraînement, ainsi qu’une réduction de 92 % du temps d’ingénierie par modèle grâce à la standardisation et à l’automatisation. Le déploiement d’une technique exige un gain statistiquement significatif en test A/B en ligne.",
+        "whyItMatters": "Pour les équipes qui propagent des techniques entre modèles, Meta rapporte une réduction du temps d’ingénierie grâce à la standardisation et à l’automatisation, tout en exigeant un gain statistiquement significatif en test A/B en ligne avant déploiement."
+      }
+    },
+    {
+      "id": "s4",
+      "category": "emerging-technology",
+      "url": "https://www.postgresql.org/about/news/postgresql-19-released-3449/",
+      "publisher": "PostgreSQL News",
+      "sourcePublishedOn": "2026-11-19",
+      "sourceHeadline": "PostgreSQL 19 Released!",
+      "sourceHeadlineLang": "en",
+      "en": {
+        "headline": "PostgreSQL 19 adds plan controls and improves foreign key checks",
+        "summary": "PostgreSQL News reports that the PostgreSQL Global Development Group has released PostgreSQL 19. Its new pg_plan_advice extension lets users stabilize plan choices and experiment with different plans through a mini-language. In testing, improved foreign key checks made bulk inserts nearly twice as fast.",
+        "whyItMatters": "Database teams can use pg_plan_advice to stabilize plan choices or test alternatives. For bulk inserts, the reported speed improvement from foreign key checks was nearly twofold in testing."
+      },
+      "fr": {
+        "headline": "PostgreSQL 19 ajoute le contrôle des plans et améliore les vérifications de clés étrangères",
+        "summary": "PostgreSQL News annonce la sortie de PostgreSQL 19 par le PostgreSQL Global Development Group. La nouvelle extension pg_plan_advice permet de stabiliser les choix de plans et d’expérimenter différents plans au moyen d’un mini-langage. Lors des tests, les vérifications améliorées des clés étrangères ont rendu les insertions en masse presque deux fois plus rapides.",
+        "whyItMatters": "Les équipes chargées des bases de données peuvent utiliser pg_plan_advice pour stabiliser les choix de plans ou tester des variantes. Pour les insertions en masse, l’amélioration des vérifications de clés étrangères a presque doublé la vitesse lors des tests."
+      }
+    }
+  ]
+}
